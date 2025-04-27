@@ -1,8 +1,0 @@
-[theme]
-
-primaryColor = "#f25f5c"  # Vibrant red for highlights and progress bars
-backgroundColor = "#1e1e1e"  # Deep charcoal background
-secondaryBackgroundColor = "#2b2b2b"  # Slightly lighter for cards and sidebar
-textColor = "#f5f5f5"  # Near-white text for readability
-font = "sans-serif"
-
