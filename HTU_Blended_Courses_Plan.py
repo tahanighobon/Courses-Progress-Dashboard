@@ -121,10 +121,10 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ==========================
 if page=="🏠 Home":
     summary = [
-        {"school":"SCI","total":35,"ready":6},
-        {"school":"SET","total":69,"ready":5},
+        {"school":"SCI","total":37,"ready":8},
+        {"school":"SET","total":69,"ready":9},
         {"school":"SBEE","total":30,"ready":2},
-        {"school":"SSBS","total":32,"ready":9},
+        {"school":"SSBS","total":32,"ready":12},
     ]
     for s in summary:
         s["percent"]=0 if s["total"]==0 else round(s["ready"]/s["total"]*100,1)
@@ -312,3 +312,4 @@ st.markdown(
     "<div style='text-align:center;color:#666;padding:10px;'>Made By: The D. Learn Center at HTU</div>",
     unsafe_allow_html=True,
 )
+
