@@ -7,9 +7,18 @@ import re
 st.set_page_config(layout="wide")
 
 # ==========================
-# URL (single combined sheet)
+# URLs
 # ==========================
+# Courses dashboard sheet (existing)
 DATA_URL = "https://docs.google.com/spreadsheets/d/1EL31srR2r_CXmSXEjGprdWCH3HByT5HLGFlsEhImBBM/gviz/tq?tqx=out:csv&sheet=2013"
+
+# TLC Sessions sheets (4 spreadsheets, gid=0)
+TLC_SHEETS = [
+    "https://docs.google.com/spreadsheets/d/1y7mPQzNxkGXMKqBVEk1X_icALvotanOkL3HL885sMAY/gviz/tq?tqx=out:csv&gid=0",
+    "https://docs.google.com/spreadsheets/d/1Ksh_5KUAyuE_H_rJkf0vDRvSKJxvyt2sYSzDgLwR5Nw/gviz/tq?tqx=out:csv&gid=0",
+    "https://docs.google.com/spreadsheets/d/1bRHPX7vvU49A0Q_WzaKhNwhjqS9ketpEJKU64GLSIuM/gviz/tq?tqx=out:csv&gid=0",
+    "https://docs.google.com/spreadsheets/d/1B5o0uBdFrR-pGT9dxStLorAgWx3XUYyN6I-yiBZlMcc/gviz/tq?tqx=out:csv&gid=0",
+]
 
 # ==========================
 # Helpers
@@ -24,6 +33,17 @@ def is_filled(x) -> bool:
     if s.lower() in {"nan", "none", "null"}:
         return False
     return True
+
+
+def norm_bool(x) -> bool:
+    """Normalize TRUE/FALSE cells from TLC sheets."""
+    if isinstance(x, bool):
+        return x
+    if x is None or (isinstance(x, float) and pd.isna(x)):
+        return False
+    s = str(x).strip().lower()
+    return s in {"true", "yes", "1", "✓", "✔", "✅", "done"}
+
 
 def render_donut_chart(percent: float, key: str, size_px=170):
     pct = 0.0 if pd.isna(percent) else float(percent)
@@ -59,6 +79,7 @@ def render_donut_chart(percent: float, key: str, size_px=170):
     )
     st.plotly_chart(fig, use_container_width=True, key=key)
 
+
 def clean_name(name: str) -> str:
     n = "" if name is None else str(name)
     n = n.replace("\n", " ").replace("\r", " ").strip()
@@ -66,12 +87,28 @@ def clean_name(name: str) -> str:
     n = n.strip(" ,;")
     return n
 
+
+def normalize_person_name(name: str) -> str:
+    """
+    Stronger normalization for matching names across sheets:
+    - lower
+    - remove punctuation
+    - remove common titles like Eng.
+    """
+    n = clean_name(name).lower()
+    n = n.replace("eng.", " ").replace("eng", " ")
+    n = re.sub(r"[^a-z0-9\s]", " ", n)  # keep only letters/numbers/spaces
+    n = re.sub(r"\s+", " ", n).strip()
+    return n
+
+
 def split_instructors(s: str):
     if s is None or (isinstance(s, float) and pd.isna(s)):
         return []
     txt = str(s).replace("\n", ",")
     parts = [clean_name(p) for p in txt.split(",")]
     return [p for p in parts if p]
+
 
 def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:
     """
@@ -83,6 +120,7 @@ def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:
     txt = clean_name(str(cell_value)).lower()
     inst = clean_name(instructor_name).lower()
     return inst in txt
+
 
 def compute_progress_percent(row: pd.Series, df_columns: list) -> float:
     """
@@ -106,13 +144,17 @@ def compute_progress_percent(row: pd.Series, df_columns: list) -> float:
 
     return (do_score + blocks_score) * 100.0
 
+
+# ==========================
+# Load Courses Data
+# ==========================
 @st.cache_data
 def load_data():
     df = pd.read_csv(DATA_URL)
     df.columns = df.columns.astype(str).str.strip()
 
     # unify course column name
-    for possible in ["Course \\ pathway", "Course \\\\ pathway", "Course / pathway", "Course  pathway", "Course \\pathway"]:
+    for possible in ["Course \\ pathway", "Course \\\\ pathway", "Course / pathway", "Course pathway", "Course \\pathway", "Course  pathway"]:
         if possible in df.columns and possible != "Course \\ pathway":
             df = df.rename(columns={possible: "Course \\ pathway"})
 
@@ -131,7 +173,7 @@ def load_data():
         if c not in df.columns:
             df[c] = ""
 
-    # NEW: Notes column (optional but supported)
+    # Notes column
     if "Notes" not in df.columns:
         df["Notes"] = ""
 
@@ -142,8 +184,78 @@ def load_data():
 
     # Compute Progress % inside the code
     df["Progress %"] = df.apply(lambda r: compute_progress_percent(r, df.columns.tolist()), axis=1)
-
     return df
+
+
+# ==========================
+# Load TLC Sessions Data (from 4 sheets)
+# ==========================
+@st.cache_data
+def load_tlc_sessions():
+    frames = []
+    for url in TLC_SHEETS:
+        try:
+            d = pd.read_csv(url)
+        except Exception:
+            continue
+
+        d.columns = d.columns.astype(str).str.strip()
+
+        # unify instructor name column (your sample has "Istructor Name")
+        name_col = None
+        for c in d.columns:
+            if c.strip().lower() in {"instructor name", "istructor name", "instructor", "name"}:
+                name_col = c
+                break
+        if name_col is None:
+            # fallback: first column
+            name_col = d.columns[0]
+
+        d = d.rename(columns={name_col: "Instructor Name"})
+
+        # normalize booleans in session columns (everything except Instructor Name)
+        for c in d.columns:
+            if c == "Instructor Name":
+                continue
+            d[c] = d[c].apply(norm_bool)
+
+        # add normalized key for matching
+        d["__name_key__"] = d["Instructor Name"].apply(normalize_person_name)
+        frames.append(d)
+
+    if not frames:
+        return pd.DataFrame(columns=["Instructor Name", "__name_key__"])
+
+    # concatenate and merge duplicates by OR-ing session booleans
+    all_df = pd.concat(frames, ignore_index=True)
+
+    # IMPORTANT: ignore blank/unnamed columns here as well
+    session_cols = [
+        c for c in all_df.columns
+        if c not in {"Instructor Name", "__name_key__"}
+        and str(c).strip() != ""
+        and not str(c).strip().lower().startswith("unnamed")
+    ]
+
+    def first_non_empty(values):
+        for v in values:
+            if is_filled(v):
+                return v
+        return values[0] if values else ""
+
+    grouped = all_df.groupby("__name_key__", dropna=False)
+    out_rows = []
+    for key, g in grouped:
+        row = {
+            "__name_key__": key,
+            "Instructor Name": first_non_empty(g["Instructor Name"].tolist()),
+        }
+        for c in session_cols:
+            row[c] = bool(g[c].fillna(False).astype(bool).any())
+        out_rows.append(row)
+
+    return pd.DataFrame(out_rows)
+
 
 # ==========================
 # Sidebar
@@ -166,9 +278,10 @@ st.markdown("<br>", unsafe_allow_html=True)
 # Load all data once
 # ==========================
 df_all = load_data()
+df_tlc = load_tlc_sessions()
 
 # ==========================
-# HOME PAGE (unchanged, only bars)
+# HOME PAGE (unchanged)
 # ==========================
 if page == "🏠 Home":
     summary = [
@@ -234,7 +347,10 @@ if page == "🏠 Home":
     st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================
-# INSTRUCTORS TAB (table unchanged + NOTES shown below)
+# INSTRUCTORS TAB
+# - old table stays the same
+# - Notes stays the same
+# - TLC Sessions table fixed (no Unnamed columns)
 # ==========================
 if page == "🏫 Instructors":
     st.subheader("Instructors")
@@ -274,10 +390,8 @@ if page == "🏫 Instructors":
         else:
             rows = []
             for _, r in df_i.iterrows():
-                # Detailed Outline participation (by name appearing in cell)
                 do_worked = instructor_mentioned_in_cell(r.get("Detailed Outline", ""), instructor)
 
-                # Blocks worked on (by name appearing in each block cell)
                 worked_blocks = []
                 for i in range(1, 16):
                     b = f"Block {i}"
@@ -301,7 +415,7 @@ if page == "🏫 Instructors":
             )
             st.table(report)
 
-            # NEW: Notes section (only for courses this instructor worked on: DO or any Block)
+            # Notes section (unchanged)
             st.markdown("<br>", unsafe_allow_html=True)
             st.subheader("Notes")
 
@@ -334,8 +448,51 @@ if page == "🏫 Instructors":
                 for _, item in notes_df.iterrows():
                     st.markdown(f"• **{item['Semester']} — {item['Course']}**: {item['Notes']}")
 
+            # TLC Sessions progress table (FIXED)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("TLC Sessions Progress")
+
+            instructor_key = normalize_person_name(instructor)
+            tlc_match = df_tlc[df_tlc["__name_key__"] == instructor_key].copy()
+
+            if tlc_match.shape[0] == 0 and df_tlc.shape[0] > 0:
+                tlc_match = df_tlc[df_tlc["__name_key__"].astype(str).str.contains(re.escape(instructor_key), na=False)].copy()
+                if tlc_match.shape[0] == 0:
+                    tlc_match = df_tlc[df_tlc["__name_key__"].apply(lambda x: instructor_key in str(x) or str(x) in instructor_key)].copy()
+
+            if tlc_match.shape[0] == 0:
+                st.info("No TLC session data found for this instructor (in the 4 TLC sheets).")
+            else:
+                # FIX: ignore blank/unnamed columns here too
+                session_cols = [
+                    c for c in tlc_match.columns
+                    if c not in {"Instructor Name", "__name_key__"}
+                    and str(c).strip() != ""
+                    and not str(c).strip().lower().startswith("unnamed")
+                ]
+
+                merged = {}
+                for c in session_cols:
+                    merged[c] = bool(tlc_match[c].fillna(False).astype(bool).any())
+
+                session_rows = []
+                completed = 0
+                total = len(session_cols)
+                for c in session_cols:
+                    done = bool(merged.get(c, False))
+                    if done:
+                        completed += 1
+                    session_rows.append({"Session": c, "Completion": "✅" if done else "❌"})
+
+                tlc_table = pd.DataFrame(session_rows)
+                st.table(tlc_table)
+
+                pct = 0 if total == 0 else (completed / total) * 100
+                st.progress(int(pct))
+                st.write(f"TLC Completion: {completed} / {total} ({pct:.1f}%)")
+
 # ==========================
-# SPRING PAGE (filter by Semester)
+# SPRING PAGE
 # ==========================
 if page == "🌱 Spring 2024/2025":
     df = df_all[df_all["Semester"].astype(str).str.contains("Spring", na=False)].copy()
@@ -398,7 +555,7 @@ if page == "🌱 Spring 2024/2025":
         st.write(f"{0 if pd.isna(row['Progress %']) else row['Progress %']:.1f}%")
 
 # ==========================
-# FALL PAGE (filter by Semester)
+# FALL PAGE
 # ==========================
 if page == "🍂 Fall 2025/2026":
     df = df_all[df_all["Semester"].astype(str).str.contains("Fall", na=False)].copy()
