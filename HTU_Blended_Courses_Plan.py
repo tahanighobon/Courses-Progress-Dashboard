@@ -271,7 +271,7 @@ if page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026"]:
 # Header
 # ==========================
 st.markdown("<h1 style='text-align:center;color:#d04546;'>HTU</h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align:center;'>2025–2028 Digital Plan</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align:center;'>HTU Digital Twin by 2028 Progress</h2>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================
@@ -626,3 +626,4 @@ st.markdown(
     "<div style='text-align:center;color:#666;padding:10px;'>Made By: The D. Learn Center at HTU</div>",
     unsafe_allow_html=True,
 )
+
