@@ -32,6 +32,15 @@ def is_filled(x) -> bool:
     return True
 
 
+def clean_text_value(x) -> str:
+    if x is None or (isinstance(x, float) and pd.isna(x)):
+        return ""
+    s = str(x).strip()
+    if s.lower() in {"nan", "none", "null"}:
+        return ""
+    return s
+
+
 def norm_bool(x) -> bool:
     if isinstance(x, bool):
         return x
@@ -97,7 +106,7 @@ def split_instructors(s: str):
         return []
     txt = str(s).replace("\n", ",")
     parts = [clean_name(p) for p in txt.split(",")]
-    return [p for p in parts if p]
+    return [p for p in parts if p and p.lower() not in {"nan", "none", "null"}]
 
 
 def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:
@@ -193,9 +202,23 @@ def load_data():
     if "Notes" not in df.columns:
         df["Notes"] = ""
 
-    for c in ["Semester", "School", "Department", "Course \\ pathway", "Development Stage", "Dept. Head", "SMEs", "ID"]:
+    text_cols = [
+        "Semester",
+        "School",
+        "Department",
+        "Course \\ pathway",
+        "Development Stage",
+        "Dept. Head",
+        "SMEs",
+        "ID",
+        "Detailed Outline",
+        "Notes",
+    ] + [f"Block {i}" for i in range(1, 16)]
+
+    for c in text_cols:
         if c in df.columns:
-            df[c] = df[c].astype(str).str.strip()
+            df[c] = df[c].fillna("").astype(str).str.strip()
+            df[c] = df[c].replace({"nan": "", "None": "", "null": "", "NaN": ""})
 
     df["Progress %"] = df.apply(lambda r: compute_progress_percent(r, df.columns.tolist()), axis=1)
     df["__semester_key__"] = df["Semester"].apply(normalize_semester_label)
@@ -354,11 +377,16 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 
         row = d2[d2["Course \\ pathway"] == course].iloc[0]
 
-        st.subheader(f"{course} - ({row['Development Stage']} Stage)")
+        dean_name = clean_text_value(row.get("Dept. Head", ""))
+        smes_name = clean_text_value(row.get("SMEs", ""))
+        id_name = clean_text_value(row.get("ID", ""))
+        stage_name = clean_text_value(row.get("Development Stage", ""))
+
+        st.subheader(f"{course} - ({stage_name} Stage)")
         st.markdown("<hr>", unsafe_allow_html=True)
-        st.write(f"👨‍🏫 Dean: {row['Dept. Head']}")
-        st.write(f"📝 SMEs: {row['SMEs']}")
-        st.write(f"🎯 Instructional Designer: {row['ID']}")
+        st.write(f"👨‍🏫 Dean: {dean_name if dean_name else '—'}")
+        st.write(f"📝 SMEs: {smes_name if smes_name else '—'}")
+        st.write(f"🎯 Instructional Designer: {id_name if id_name else '—'}")
 
         tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
         df_tasks = pd.DataFrame(
@@ -528,8 +556,8 @@ if page == "🏫 Instructors":
                                 worked_blocks.append(b)
 
                         rows.append({
-                            "Semester": r.get("Semester", ""),
-                            "Course": r.get("Course \\ pathway", ""),
+                            "Semester": clean_text_value(r.get("Semester", "")),
+                            "Course": clean_text_value(r.get("Course \\ pathway", "")),
                             "Total Progress": "" if pd.isna(r.get("Progress %", np.nan)) else f"{float(r.get('Progress %')):.1f}%",
                             "Detailed Outline": "✅" if do_worked else "❌",
                             "Blocks": ", ".join(worked_blocks) if worked_blocks else "—",
@@ -549,8 +577,8 @@ if page == "🏫 Instructors":
 
                     notes_items = []
                     for _, r in df_i.iterrows():
-                        course_name = r.get("Course \\ pathway", "")
-                        semester = r.get("Semester", "")
+                        course_name = clean_text_value(r.get("Course \\ pathway", ""))
+                        semester = clean_text_value(r.get("Semester", ""))
 
                         worked_any = False
                         if instructor_mentioned_in_cell(r.get("Detailed Outline", ""), instructor):
@@ -561,12 +589,12 @@ if page == "🏫 Instructors":
                                     worked_any = True
                                     break
 
-                        note_txt = r.get("Notes", "")
-                        if worked_any and is_filled(note_txt):
+                        note_txt = clean_text_value(r.get("Notes", ""))
+                        if worked_any and note_txt:
                             notes_items.append({
                                 "Semester": semester,
                                 "Course": course_name,
-                                "Notes": str(note_txt).strip(),
+                                "Notes": note_txt,
                             })
 
                     if len(notes_items) == 0:
