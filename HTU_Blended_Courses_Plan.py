@@ -9,10 +9,8 @@ st.set_page_config(layout="wide")
 # ==========================
 # URLs
 # ==========================
-# Courses dashboard sheet (existing)
 DATA_URL = "https://docs.google.com/spreadsheets/d/1EL31srR2r_CXmSXEjGprdWCH3HByT5HLGFlsEhImBBM/gviz/tq?tqx=out:csv&sheet=2013"
 
-# TLC Sessions sheets (4 spreadsheets, gid=0)
 TLC_SHEETS = [
     "https://docs.google.com/spreadsheets/d/1y7mPQzNxkGXMKqBVEk1X_icALvotanOkL3HL885sMAY/gviz/tq?tqx=out:csv&gid=0",
     "https://docs.google.com/spreadsheets/d/1Ksh_5KUAyuE_H_rJkf0vDRvSKJxvyt2sYSzDgLwR5Nw/gviz/tq?tqx=out:csv&gid=0",
@@ -24,7 +22,6 @@ TLC_SHEETS = [
 # Helpers
 # ==========================
 def is_filled(x) -> bool:
-    """True if the cell has any non-empty value (e.g., instructor name)."""
     if x is None or (isinstance(x, float) and pd.isna(x)):
         return False
     s = str(x).strip()
@@ -36,7 +33,6 @@ def is_filled(x) -> bool:
 
 
 def norm_bool(x) -> bool:
-    """Normalize TRUE/FALSE cells from TLC sheets."""
     if isinstance(x, bool):
         return x
     if x is None or (isinstance(x, float) and pd.isna(x)):
@@ -89,15 +85,9 @@ def clean_name(name: str) -> str:
 
 
 def normalize_person_name(name: str) -> str:
-    """
-    Stronger normalization for matching names across sheets:
-    - lower
-    - remove punctuation
-    - remove common titles like Eng.
-    """
     n = clean_name(name).lower()
     n = n.replace("eng.", " ").replace("eng", " ")
-    n = re.sub(r"[^a-z0-9\s]", " ", n)  # keep only letters/numbers/spaces
+    n = re.sub(r"[^a-z0-9\s]", " ", n)
     n = re.sub(r"\s+", " ", n).strip()
     return n
 
@@ -111,10 +101,6 @@ def split_instructors(s: str):
 
 
 def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:
-    """
-    For block cells and detailed outline cell:
-    treat as instructor worked on it if the instructor name appears in the cell text.
-    """
     if not is_filled(cell_value):
         return False
     txt = clean_name(str(cell_value)).lower()
@@ -123,13 +109,6 @@ def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:
 
 
 def compute_progress_percent(row: pd.Series, df_columns: list) -> float:
-    """
-    Weighting:
-      - Detailed Outline: 20%
-      - Blocks 1..15: 80% / 15 each
-    Completion:
-      - A cell is "done" if it is filled (any name/value exists)
-    """
     detailed_col = "Detailed Outline"
     blocks = [f"Block {i}" for i in range(1, 16)]
 
@@ -145,6 +124,31 @@ def compute_progress_percent(row: pd.Series, df_columns: list) -> float:
     return (do_score + blocks_score) * 100.0
 
 
+def normalize_semester_label(s: str) -> str:
+    s = "" if s is None else str(s).strip().lower()
+    s = s.replace("-", " ")
+    s = re.sub(r"\s+", " ", s)
+
+    replacements = {
+        "spring 24/25": "spring 2024/2025",
+        "spring 2024/25": "spring 2024/2025",
+        "spring 24/2025": "spring 2024/2025",
+        "spring 2024/2025": "spring 2024/2025",
+
+        "fall 25/26": "fall 2025/2026",
+        "fall 2025/26": "fall 2025/2026",
+        "fall 25/2026": "fall 2025/2026",
+        "fall 2025/2026": "fall 2025/2026",
+
+        "spring 25/26": "spring 2025/2026",
+        "spring 2025/26": "spring 2025/2026",
+        "spring 25/2026": "spring 2025/2026",
+        "spring 2025/2026": "spring 2025/2026",
+    }
+
+    return replacements.get(s, s)
+
+
 # ==========================
 # Load Courses Data
 # ==========================
@@ -153,7 +157,6 @@ def load_data():
     df = pd.read_csv(DATA_URL)
     df.columns = df.columns.astype(str).str.strip()
 
-    # unify course column name
     for possible in [
         "Course \\ pathway",
         "Course \\\\ pathway",
@@ -165,7 +168,6 @@ def load_data():
         if possible in df.columns and possible != "Course \\ pathway":
             df = df.rename(columns={possible: "Course \\ pathway"})
 
-    # ensure required base columns exist (text)
     base_text_cols = [
         "Semester",
         "School",
@@ -180,7 +182,6 @@ def load_data():
         if col not in df.columns:
             df[col] = ""
 
-    # ensure new columns exist
     if "Detailed Outline" not in df.columns:
         df["Detailed Outline"] = ""
 
@@ -189,22 +190,21 @@ def load_data():
         if c not in df.columns:
             df[c] = ""
 
-    # Notes column
     if "Notes" not in df.columns:
         df["Notes"] = ""
 
-    # clean some whitespace
     for c in ["Semester", "School", "Department", "Course \\ pathway", "Development Stage", "Dept. Head", "SMEs", "ID"]:
         if c in df.columns:
             df[c] = df[c].astype(str).str.strip()
 
-    # Compute Progress % inside the code
     df["Progress %"] = df.apply(lambda r: compute_progress_percent(r, df.columns.tolist()), axis=1)
+    df["__semester_key__"] = df["Semester"].apply(normalize_semester_label)
+
     return df
 
 
 # ==========================
-# Load TLC Sessions Data (from 4 sheets)
+# Load TLC Sessions Data
 # ==========================
 @st.cache_data
 def load_tlc_sessions():
@@ -217,7 +217,6 @@ def load_tlc_sessions():
 
         d.columns = d.columns.astype(str).str.strip()
 
-        # unify instructor name column
         name_col = None
         for c in d.columns:
             if c.strip().lower() in {"instructor name", "istructor name", "instructor", "name"}:
@@ -228,7 +227,6 @@ def load_tlc_sessions():
 
         d = d.rename(columns={name_col: "Instructor Name"})
 
-        # normalize booleans in session columns
         for c in d.columns:
             if c == "Instructor Name":
                 continue
@@ -273,10 +271,13 @@ def load_tlc_sessions():
 # Generic Semester Page Renderer
 # ==========================
 def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, key_prefix: str):
-    df = df_all[df_all["Semester"].astype(str).str.strip() == semester_label].copy()
+    target_semester = normalize_semester_label(semester_label)
+    df = df_all[df_all["__semester_key__"] == target_semester].copy()
 
     if df.empty:
         st.warning(f"No data found for {semester_label}.")
+        st.write("Available semester values found in sheet:")
+        st.write(sorted(df_all["Semester"].astype(str).dropna().unique()))
         return
 
     if view == "Overview":
@@ -309,7 +310,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         overall = df["Progress %"].mean()
         st.subheader(f"Overall University Progress ({semester_label})")
         st.progress(int(0 if pd.isna(overall) else overall))
-        st.write(f"**Overall Completion:** {0 if pd.isna(overall) else overall:.1f}%")
+        st.write(f"Overall Completion: {0 if pd.isna(overall) else overall:.1f}%")
 
     else:
         st.subheader(f"{semester_label} – Schools")
@@ -355,9 +356,9 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 
         st.subheader(f"{course} - ({row['Development Stage']} Stage)")
         st.markdown("<hr>", unsafe_allow_html=True)
-        st.write(f"**👨‍🏫 Dean:** {row['Dept. Head']}")
-        st.write(f"**📝 SMEs:** {row['SMEs']}")
-        st.write(f"**🎯 Instructional Designer:** {row['ID']}")
+        st.write(f"👨‍🏫 Dean: {row['Dept. Head']}")
+        st.write(f"📝 SMEs: {row['SMEs']}")
+        st.write(f"🎯 Instructional Designer: {row['ID']}")
 
         tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
         df_tasks = pd.DataFrame(
@@ -383,12 +384,12 @@ page = st.sidebar.radio(
         "🏠 Home",
         "🏫 Instructors",
         "🌱 Spring 2024/2025",
-        "🌸 Spring 2025/2026",
         "🍂 Fall 2025/2026",
+        "🌸 Spring 2025/2026",
     ]
 )
 
-if page in ["🌱 Spring 2024/2025", "🌸 Spring 2025/2026", "🍂 Fall 2025/2026"]:
+if page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026", "🌸 Spring 2025/2026"]:
     view = st.sidebar.radio("View", ["Overview", "Schools"])
 
 # ==========================
@@ -491,7 +492,6 @@ if page == "🏫 Instructors":
             department = st.sidebar.selectbox("Select Department", department_options)
             df_d = df_s[df_s["Department"] == department].copy()
 
-            # Build instructor list from SMEs column
             all_instructors = []
             for val in df_d["SMEs"].fillna(""):
                 all_instructors.extend(split_instructors(val))
@@ -538,13 +538,12 @@ if page == "🏫 Instructors":
                     report = pd.DataFrame(rows)
                     report = (
                         report.dropna(subset=["Semester", "Course"])
-                              .drop_duplicates()
-                              .sort_values(["Semester", "Course"])
-                              .reset_index(drop=True)
+                        .drop_duplicates()
+                        .sort_values(["Semester", "Course"])
+                        .reset_index(drop=True)
                     )
                     st.table(report)
 
-                    # Notes section
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("Notes")
 
@@ -573,11 +572,15 @@ if page == "🏫 Instructors":
                     if len(notes_items) == 0:
                         st.info("No notes found for the selected instructor.")
                     else:
-                        notes_df = pd.DataFrame(notes_items).drop_duplicates().sort_values(["Semester", "Course"]).reset_index(drop=True)
+                        notes_df = (
+                            pd.DataFrame(notes_items)
+                            .drop_duplicates()
+                            .sort_values(["Semester", "Course"])
+                            .reset_index(drop=True)
+                        )
                         for _, item in notes_df.iterrows():
                             st.markdown(f"• **{item['Semester']} — {item['Course']}**: {item['Notes']}")
 
-                    # TLC Sessions
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("TLC Sessions Progress")
 
@@ -606,6 +609,7 @@ if page == "🏫 Instructors":
                         session_rows = []
                         completed = 0
                         total = len(session_cols)
+
                         for c in session_cols:
                             done = bool(merged.get(c, False))
                             if done:
@@ -625,11 +629,11 @@ if page == "🏫 Instructors":
 if page == "🌱 Spring 2024/2025":
     render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
 
-if page == "🌸 Spring 2025/2026":
-    render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
-
 if page == "🍂 Fall 2025/2026":
     render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
+
+if page == "🌸 Spring 2025/2026":
+    render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
 
 # ==========================
 # Footer
