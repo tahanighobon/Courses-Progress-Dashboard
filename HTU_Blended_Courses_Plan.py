@@ -385,7 +385,7 @@ page = st.sidebar.radio(
         "🏫 Instructors",
         "🌱 Spring 2024/2025",
         "🍂 Fall 2025/2026",
-        "🌸 Spring 2025/2026",
+        "🌱 Spring 2025/2026",
     ]
 )
 
@@ -643,6 +643,7 @@ st.markdown(
     "<div style='text-align:center;color:#666;padding:10px;'>Made By: The D. Learn Center at HTU</div>",
     unsafe_allow_html=True,
 )
+
 
 
 
