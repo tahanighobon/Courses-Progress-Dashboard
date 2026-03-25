@@ -18,9 +18,9 @@ TLC_SHEETS = [
     "https://docs.google.com/spreadsheets/d/1B5o0uBdFrR-pGT9dxStLorAgWx3XUYyN6I-yiBZlMcc/gviz/tq?tqx=out:csv&gid=0",
 ]
 
-# ===========================
+# ==========================
 # Helpers
-# ===========================
+# ==========================
 def is_filled(x) -> bool:
     if x is None or (isinstance(x, float) and pd.isna(x)):
         return False
