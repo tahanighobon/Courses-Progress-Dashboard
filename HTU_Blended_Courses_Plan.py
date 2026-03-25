@@ -158,9 +158,9 @@ def normalize_semester_label(s: str) -> str:
     return replacements.get(s, s)
 
 
-# ===========================
+# ==========================
 # Load Courses Data
-# ===========================
+# ==========================
 @st.cache_data
 def load_data():
     df = pd.read_csv(DATA_URL)
@@ -291,7 +291,7 @@ def load_tlc_sessions():
 
 
 # ==========================
-# Generic Semester Page Renderer
+# Semester Page Renderer
 # ==========================
 def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, key_prefix: str):
     target_semester = normalize_semester_label(semester_label)
@@ -343,15 +343,52 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
             st.info("No schools found.")
             return
 
+        # School filter
         college = st.sidebar.selectbox(
             "Select a College",
             schools,
             key=f"{key_prefix}_college"
         )
 
-        d1 = df[df["School"] == college]
+        d1 = df[df["School"] == college].copy()
 
+        # New school overview block
+        course_count = d1.shape[0]
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style='background:#2b2b2b;border-radius:14px;padding:18px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
+                <div style='font-size:22px;font-weight:700;margin-bottom:4px;'>{college}</div>
+                <div style='font-size:14px;color:#cccccc;'>{course_count} Courses</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("School Courses Overview")
+
+        school_table = d1[["Department", "Course \\ pathway", "SMEs", "Progress %"]].copy()
+        school_table["Department"] = school_table["Department"].apply(clean_text_value)
+        school_table["Course \\ pathway"] = school_table["Course \\ pathway"].apply(clean_text_value)
+        school_table["SMEs"] = school_table["SMEs"].apply(clean_text_value)
+        school_table["Progress %"] = school_table["Progress %"].apply(
+            lambda x: f"{float(x):.1f}%" if not pd.isna(x) else ""
+        )
+
+        school_table = school_table.rename(columns={
+            "Department": "Department",
+            "Course \\ pathway": "Course",
+            "SMEs": "Instructors",
+            "Progress %": "Course Progress",
+        })
+
+        school_table = school_table.sort_values(["Department", "Course"]).reset_index(drop=True)
+        st.table(school_table)
+
+        # Keep existing filters
         departments = d1["Department"].dropna().unique()
+        departments = [d for d in departments if clean_text_value(d) != ""]
         if len(departments) == 0:
             st.info("No departments found.")
             return
@@ -362,9 +399,10 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
             key=f"{key_prefix}_dept"
         )
 
-        d2 = d1[d1["Department"] == dept]
+        d2 = d1[d1["Department"] == dept].copy()
 
         courses = d2["Course \\ pathway"].dropna().unique()
+        courses = [c for c in courses if clean_text_value(c) != ""]
         if len(courses) == 0:
             st.info("No courses found.")
             return
@@ -382,6 +420,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         id_name = clean_text_value(row.get("ID", ""))
         stage_name = clean_text_value(row.get("Development Stage", ""))
 
+        st.markdown("<br>", unsafe_allow_html=True)
         st.subheader(f"{course} - ({stage_name} Stage)")
         st.markdown("<hr>", unsafe_allow_html=True)
         st.write(f"👨‍🏫 Dean: {dean_name if dean_name else '—'}")
@@ -514,6 +553,7 @@ if page == "🏫 Instructors":
         df_s = df_all[df_all["School"] == school]
 
         department_options = sorted(df_s["Department"].dropna().unique())
+        department_options = [d for d in department_options if clean_text_value(d) != ""]
         if len(department_options) == 0:
             st.info("No departments found for the selected school.")
         else:
@@ -671,5 +711,3 @@ st.markdown(
     "<div style='text-align:center;color:#666;padding:10px;'>Made By: The D. Learn Center at HTU</div>",
     unsafe_allow_html=True,
 )
-
-
