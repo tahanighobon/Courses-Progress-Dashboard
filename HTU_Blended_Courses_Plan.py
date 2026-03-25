@@ -158,9 +158,9 @@ def normalize_semester_label(s: str) -> str:
     return replacements.get(s, s)
 
 
-# ==========================
+# ===========================
 # Load Courses Data
-# ==========================
+# ===========================
 @st.cache_data
 def load_data():
     df = pd.read_csv(DATA_URL)
