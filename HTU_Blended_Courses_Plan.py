@@ -353,33 +353,13 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         d1 = df[df["School"] == college].copy()
 
         # School overview block
-        # School overview block
         course_count = d1.shape[0]
-        
-        dept_counts = (
-            d1[d1["Department"].apply(clean_text_value) != ""]
-            .groupby("Department")
-            .size()
-            .reset_index(name="Count")
-            .sort_values("Department")
-        )
-        
-        dept_lines = ""
-        if dept_counts.shape[0] > 0:
-            dept_lines = "<div style='margin-top:10px;font-size:14px;color:#cccccc;line-height:1.8;'>"
-            for _, r in dept_counts.iterrows():
-                dept_name = clean_text_value(r["Department"])
-                dept_count = int(r["Count"])
-                dept_lines += f"<div>{dept_name}: {dept_count} Courses</div>"
-            dept_lines += "</div>"
-        
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(
             f"""
             <div style='background:#2b2b2b;border-radius:14px;padding:18px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
                 <div style='font-size:22px;font-weight:700;margin-bottom:4px;'>{college}</div>
                 <div style='font-size:14px;color:#cccccc;'>{course_count} Courses</div>
-                {dept_lines}
             </div>
             """,
             unsafe_allow_html=True,
