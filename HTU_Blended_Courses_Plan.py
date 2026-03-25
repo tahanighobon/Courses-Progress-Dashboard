@@ -343,6 +343,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
             st.info("No schools found.")
             return
 
+        # School filter
         college = st.sidebar.selectbox(
             "Select a College",
             schools,
@@ -351,6 +352,41 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 
         d1 = df[df["School"] == college].copy()
 
+        # School overview block
+        course_count = d1.shape[0]
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div style='background:#2b2b2b;border-radius:14px;padding:18px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
+                <div style='font-size:22px;font-weight:700;margin-bottom:4px;'>{college}</div>
+                <div style='font-size:14px;color:#cccccc;'>{course_count} Courses</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("School Courses Overview")
+
+        school_table = d1[["Department", "Course \\ pathway", "SMEs", "Progress %"]].copy()
+        school_table["Department"] = school_table["Department"].apply(clean_text_value)
+        school_table["Course \\ pathway"] = school_table["Course \\ pathway"].apply(clean_text_value)
+        school_table["SMEs"] = school_table["SMEs"].apply(clean_text_value)
+        school_table["Progress %"] = school_table["Progress %"].apply(
+            lambda x: f"{float(x):.1f}%" if not pd.isna(x) else ""
+        )
+
+        school_table = school_table.rename(columns={
+            "Department": "Department",
+            "Course \\ pathway": "Course",
+            "SMEs": "Instructors",
+            "Progress %": "Course Progress",
+        })
+
+        school_table = school_table.sort_values(["Department", "Course"]).reset_index(drop=True)
+        st.table(school_table)
+
+        # Keep existing filters, but do NOT pre-show a course unless user chooses
         departments = d1["Department"].dropna().unique()
         departments = [d for d in departments if clean_text_value(d) != ""]
         departments = sorted(departments)
@@ -366,41 +402,8 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
             key=f"{key_prefix}_dept"
         )
 
-        # Show overview only before a department is selected
         if dept == "— Select Department —":
-            course_count = d1.shape[0]
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                f"""
-                <div style='background:#2b2b2b;border-radius:14px;padding:18px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
-                    <div style='font-size:22px;font-weight:700;margin-bottom:4px;'>{college}</div>
-                    <div style='font-size:14px;color:#cccccc;'>{course_count} Courses</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.subheader("School Courses Overview")
-
-            school_table = d1[["Department", "Course \\ pathway", "SMEs", "Progress %"]].copy()
-            school_table["Department"] = school_table["Department"].apply(clean_text_value)
-            school_table["Course \\ pathway"] = school_table["Course \\ pathway"].apply(clean_text_value)
-            school_table["SMEs"] = school_table["SMEs"].apply(clean_text_value)
-            school_table["Progress %"] = school_table["Progress %"].apply(
-                lambda x: f"{float(x):.1f}%" if not pd.isna(x) else ""
-            )
-
-            school_table = school_table.rename(columns={
-                "Department": "Department",
-                "Course \\ pathway": "Course",
-                "SMEs": "Instructors",
-                "Progress %": "Course Progress",
-            })
-
-            school_table = school_table.sort_values(["Department", "Course"]).reset_index(drop=True)
-            st.table(school_table)
+            st.info("Select a department from the sidebar to view course details.")
             return
 
         d2 = d1[d1["Department"] == dept].copy()
