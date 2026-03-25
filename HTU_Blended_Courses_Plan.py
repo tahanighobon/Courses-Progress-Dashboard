@@ -352,7 +352,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 
         d1 = df[df["School"] == college].copy()
 
-        # New school overview block
+        # School overview block
         course_count = d1.shape[0]
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(
@@ -386,32 +386,46 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         school_table = school_table.sort_values(["Department", "Course"]).reset_index(drop=True)
         st.table(school_table)
 
-        # Keep existing filters
+        # Keep existing filters, but do NOT pre-show a course unless user chooses
         departments = d1["Department"].dropna().unique()
         departments = [d for d in departments if clean_text_value(d) != ""]
+        departments = sorted(departments)
+
         if len(departments) == 0:
             st.info("No departments found.")
             return
 
+        dept_options = ["— Select Department —"] + list(departments)
         dept = st.sidebar.selectbox(
             "Select Department",
-            departments,
+            dept_options,
             key=f"{key_prefix}_dept"
         )
+
+        if dept == "— Select Department —":
+            st.info("Select a department from the sidebar to view course details.")
+            return
 
         d2 = d1[d1["Department"] == dept].copy()
 
         courses = d2["Course \\ pathway"].dropna().unique()
         courses = [c for c in courses if clean_text_value(c) != ""]
+        courses = sorted(courses)
+
         if len(courses) == 0:
             st.info("No courses found.")
             return
 
+        course_options = ["— Select Course —"] + list(courses)
         course = st.sidebar.selectbox(
             "Select Course",
-            courses,
+            course_options,
             key=f"{key_prefix}_course"
         )
+
+        if course == "— Select Course —":
+            st.info("Select a course from the sidebar to view course details.")
+            return
 
         row = d2[d2["Course \\ pathway"] == course].iloc[0]
 
