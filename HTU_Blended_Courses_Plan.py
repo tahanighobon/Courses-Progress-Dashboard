@@ -28,21 +28,6 @@ TLC_SHEETS = [
 ]
 
 # ==========================
-# Constants
-# ==========================
-SEMESTER_ORDER = {
-    "spring 2024/2025": 1,
-    "fall 2025/2026": 2,
-    "spring 2025/2026": 3,
-}
-
-SEMESTER_PAGES = {
-    "🌱 Spring 2024/2025": "spring 2024/2025",
-    "🍂 Fall 2025/2026": "fall 2025/2026",
-    "🌸 Spring 2025/2026": "spring 2025/2026",
-}
-
-# ==========================
 # Helpers
 # ==========================
 def is_filled(x) -> bool:
@@ -182,82 +167,6 @@ def normalize_semester_label(s: str) -> str:
     return replacements.get(s, s)
 
 
-def semester_rank(semester_key: str):
-    return SEMESTER_ORDER.get(semester_key)
-
-
-def semester_in_span(selected_semester_key: str, start_semester_key: str, end_semester_key: str) -> bool:
-    s_rank = semester_rank(start_semester_key)
-    e_rank = semester_rank(end_semester_key)
-    x_rank = semester_rank(selected_semester_key)
-
-    if x_rank is None:
-        return False
-
-    if s_rank is None and e_rank is None:
-        return False
-
-    if s_rank is None:
-        s_rank = e_rank
-    if e_rank is None:
-        e_rank = s_rank
-
-    if s_rank > e_rank:
-        s_rank, e_rank = e_rank, s_rank
-
-    return s_rank <= x_rank <= e_rank
-
-
-def semester_badges(selected_semester_key: str, start_semester_key: str, end_semester_key: str):
-    badges = []
-
-    if start_semester_key == end_semester_key:
-        badges.append("Single-semester course")
-        return badges
-
-    if selected_semester_key == start_semester_key:
-        badges.append("Started this semester")
-    if selected_semester_key == end_semester_key:
-        badges.append("Ends this semester")
-
-    s_rank = semester_rank(start_semester_key)
-    e_rank = semester_rank(end_semester_key)
-    x_rank = semester_rank(selected_semester_key)
-
-    if s_rank is not None and x_rank is not None and x_rank > s_rank:
-        badges.append("Continues from previous semester")
-
-    if e_rank is not None and x_rank is not None and x_rank < e_rank:
-        badges.append("Continues to next semester")
-
-    if not badges:
-        badges.append("Multi-semester")
-
-    return badges
-
-
-def render_badges(badges):
-    if not badges:
-        return
-    html = ""
-    for badge in badges:
-        html += f"""
-        <span style="
-            display:inline-block;
-            background:#3a3a3a;
-            color:#ffffff;
-            padding:6px 10px;
-            border-radius:999px;
-            margin-right:8px;
-            margin-bottom:8px;
-            font-size:12px;
-            border:1px solid #555;">
-            {badge}
-        </span>
-        """
-    st.markdown(html, unsafe_allow_html=True)
-
-
 def normalize_search_text(s: str) -> str:
     s = clean_text_value(s).lower()
     s = re.sub(r"\s+", " ", s).strip()
@@ -267,8 +176,6 @@ def normalize_search_text(s: str) -> str:
 def row_search_blob(row: pd.Series) -> str:
     searchable_cols = [
         "Semester",
-        "Start Semester",
-        "End Semester",
         "School",
         "Department",
         "Course \\ pathway",
@@ -301,7 +208,8 @@ def search_matches(df: pd.DataFrame, query: str) -> pd.DataFrame:
     for token in tokens:
         mask = mask & blobs.str.contains(re.escape(token), na=False)
 
-    return df[mask].copy()
+    result = df[mask].copy()
+    return result
 
 
 def get_instructor_tlc_summary(df_tlc: pd.DataFrame, instructor_name: str):
@@ -330,7 +238,11 @@ def get_instructor_tlc_summary(df_tlc: pd.DataFrame, instructor_name: str):
             completed += 1
 
     pct = 0 if total == 0 else (completed / total) * 100
-    return {"completed": completed, "total": total, "pct": pct}
+    return {
+        "completed": completed,
+        "total": total,
+        "pct": pct
+    }
 
 
 # ==========================
@@ -354,8 +266,6 @@ def load_data():
 
     base_text_cols = [
         "Semester",
-        "Start Semester",
-        "End Semester",
         "School",
         "Department",
         "Course \\ pathway",
@@ -381,8 +291,6 @@ def load_data():
 
     text_cols = [
         "Semester",
-        "Start Semester",
-        "End Semester",
         "School",
         "Department",
         "Course \\ pathway",
@@ -399,20 +307,8 @@ def load_data():
             df[c] = df[c].fillna("").astype(str).str.strip()
             df[c] = df[c].replace({"nan": "", "None": "", "null": "", "NaN": ""})
 
-    df["Start Semester"] = df.apply(
-        lambda r: clean_text_value(r.get("Start Semester", "")) if is_filled(r.get("Start Semester", "")) else clean_text_value(r.get("Semester", "")),
-        axis=1
-    )
-    df["End Semester"] = df.apply(
-        lambda r: clean_text_value(r.get("End Semester", "")) if is_filled(r.get("End Semester", "")) else clean_text_value(r.get("Semester", "")),
-        axis=1
-    )
-
-    df["__start_semester_key__"] = df["Start Semester"].apply(normalize_semester_label)
-    df["__end_semester_key__"] = df["End Semester"].apply(normalize_semester_label)
-    df["__semester_key__"] = df["Semester"].apply(normalize_semester_label)
-
     df["Progress %"] = df.apply(lambda r: compute_progress_percent(r, df.columns.tolist()), axis=1)
+    df["__semester_key__"] = df["Semester"].apply(normalize_semester_label)
 
     return df
 
@@ -497,14 +393,14 @@ def render_search_results(df_all: pd.DataFrame, df_tlc: pd.DataFrame, query: str
         f"""
         <div style='background:#2b2b2b;border-radius:14px;padding:16px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);margin-bottom:20px;'>
             <div style='font-size:22px;font-weight:700;'>Found {result.shape[0]} matching record(s)</div>
-            <div style='font-size:14px;color:#cccccc;'>Search works across school, department, course, instructor, semester, start semester, end semester, notes, stage, dean, and ID.</div>
+            <div style='font-size:14px;color:#cccccc;'>Search works across school, department, course, instructor, semester, notes, stage, dean, and ID.</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     summary_table = result[[
-        "Start Semester", "End Semester", "School", "Department", "Course \\ pathway",
+        "Semester", "School", "Department", "Course \\ pathway",
         "SMEs", "Dept. Head", "ID", "Development Stage", "Progress %"
     ]].copy()
 
@@ -531,8 +427,7 @@ def render_search_results(df_all: pd.DataFrame, df_tlc: pd.DataFrame, query: str
         course = clean_text_value(row.get("Course \\ pathway", ""))
         school = clean_text_value(row.get("School", ""))
         department = clean_text_value(row.get("Department", ""))
-        start_sem = clean_text_value(row.get("Start Semester", ""))
-        end_sem = clean_text_value(row.get("End Semester", ""))
+        semester = clean_text_value(row.get("Semester", ""))
         instructors = clean_text_value(row.get("SMEs", ""))
         dean = clean_text_value(row.get("Dept. Head", ""))
         instructional_designer = clean_text_value(row.get("ID", ""))
@@ -540,24 +435,33 @@ def render_search_results(df_all: pd.DataFrame, df_tlc: pd.DataFrame, query: str
         notes = clean_text_value(row.get("Notes", ""))
         progress = row.get("Progress %", np.nan)
 
-        with st.expander(f"{idx}. {course} | {school} | {start_sem} → {end_sem}", expanded=(idx == 1)):
-            st.write(f"School: {school if school else '—'}")
-            st.write(f"Department: {department if department else '—'}")
-            st.write(f"Start Semester: {start_sem if start_sem else '—'}")
-            st.write(f"End Semester: {end_sem if end_sem else '—'}")
-            st.write(f"Course: {course if course else '—'}")
-            st.write(f"Development Stage: {stage if stage else '—'}")
-            st.write(f"Dean: {dean if dean else '—'}")
-            st.write(f"Instructors: {instructors if instructors else '—'}")
-            st.write(f"Instructional Designer: {instructional_designer if instructional_designer else '—'}")
-            st.write(f"Notes: {notes if notes else '—'}")
+        with st.expander(f"{idx}. {course} | {school} | {semester}", expanded=(idx == 1)):
+            c1, c2 = st.columns([2, 1])
 
-            pct = 0 if pd.isna(progress) else float(progress)
-            st.progress(int(pct))
-            st.write(f"Course Progress: {pct:.1f}%")
+            with c1:
+                st.write(f"School: {school if school else '—'}")
+                st.write(f"Department: {department if department else '—'}")
+                st.write(f"Semester: {semester if semester else '—'}")
+                st.write(f"Course: {course if course else '—'}")
+                st.write(f"Development Stage: {stage if stage else '—'}")
+                st.write(f"Dean: {dean if dean else '—'}")
+                st.write(f"Instructors: {instructors if instructors else '—'}")
+                st.write(f"Instructional Designer: {instructional_designer if instructional_designer else '—'}")
+                st.write(f"Notes: {notes if notes else '—'}")
+
+            with c2:
+                pct = 0 if pd.isna(progress) else float(progress)
+                st.progress(int(pct))
+                st.write(f"Course Progress: {pct:.1f}%")
 
             tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
-            task_rows = [{"Task": t, "Completion": "✅" if is_filled(row.get(t, "")) else "❌"} for t in tasks]
+            task_rows = []
+            for t in tasks:
+                task_rows.append({
+                    "Task": t,
+                    "Completion": "✅" if is_filled(row.get(t, "")) else "❌"
+                })
+
             st.markdown("Task Completion")
             st.table(pd.DataFrame(task_rows))
 
@@ -568,7 +472,10 @@ def render_search_results(df_all: pd.DataFrame, df_tlc: pd.DataFrame, query: str
                 for inst in instructor_list:
                     tlc_summary = get_instructor_tlc_summary(df_tlc, inst)
                     if tlc_summary is None:
-                        tlc_rows.append({"Instructor": inst, "TLC Progress": "No TLC data found"})
+                        tlc_rows.append({
+                            "Instructor": inst,
+                            "TLC Progress": "No TLC data found"
+                        })
                     else:
                         tlc_rows.append({
                             "Instructor": inst,
@@ -582,27 +489,19 @@ def render_search_results(df_all: pd.DataFrame, df_tlc: pd.DataFrame, query: str
 # ==========================
 def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, key_prefix: str):
     target_semester = normalize_semester_label(semester_label)
-
-    df = df_all[
-        df_all.apply(
-            lambda r: semester_in_span(
-                target_semester,
-                r.get("__start_semester_key__", ""),
-                r.get("__end_semester_key__", "")
-            ),
-            axis=1
-        )
-    ].copy()
+    df = df_all[df_all["__semester_key__"] == target_semester].copy()
 
     if df.empty:
         st.warning(f"No data found for {semester_label}.")
+        st.write("Available semester values found in sheet:")
+        st.write(sorted(df_all["Semester"].astype(str).dropna().unique()))
         return
 
     if view == "Overview":
         st.markdown(f"<h3>{semester_label}</h3>", unsafe_allow_html=True)
-        st.subheader("Course Progress by School")
+        st.subheader("🎯 Course Progress by School")
 
-        schools = sorted([s for s in df["School"].dropna().unique() if clean_text_value(s) != ""])
+        schools = df["School"].dropna().unique()
         if len(schools) == 0:
             st.info("No schools found.")
         else:
@@ -617,7 +516,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                         f"""
                         <div style='text-align:center; margin-bottom:-10px;'>
                           <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
-                          <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses in this semester view</p>
+                          <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
                         </div>
                         """,
                         unsafe_allow_html=True,
@@ -633,7 +532,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
     else:
         st.subheader(f"{semester_label} – Schools")
 
-        schools = sorted([s for s in df["School"].dropna().unique() if clean_text_value(s) != ""])
+        schools = df["School"].dropna().unique()
         if len(schools) == 0:
             st.info("No schools found.")
             return
@@ -646,7 +545,10 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 
         d1 = df[df["School"] == college].copy()
 
-        departments = sorted([d for d in d1["Department"].dropna().unique() if clean_text_value(d) != ""])
+        departments = d1["Department"].dropna().unique()
+        departments = [d for d in departments if clean_text_value(d) != ""]
+        departments = sorted(departments)
+
         if len(departments) == 0:
             st.info("No departments found.")
             return
@@ -666,7 +568,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                 f"""
                 <div style='background:#2b2b2b;border-radius:14px;padding:18px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
                     <div style='font-size:22px;font-weight:700;margin-bottom:4px;'>{college}</div>
-                    <div style='font-size:14px;color:#cccccc;'>{course_count} Courses visible in {semester_label}</div>
+                    <div style='font-size:14px;color:#cccccc;'>{course_count} Courses</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -675,30 +577,31 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
             st.markdown("<br>", unsafe_allow_html=True)
             st.subheader("School Courses Overview")
 
-            school_rows = []
-            for _, r in d1.sort_values(["Department", "Course \\ pathway"]).iterrows():
-                badges = semester_badges(
-                    target_semester,
-                    r.get("__start_semester_key__", ""),
-                    r.get("__end_semester_key__", "")
-                )
-                school_rows.append({
-                    "Department": clean_text_value(r.get("Department", "")),
-                    "Course": clean_text_value(r.get("Course \\ pathway", "")),
-                    "Instructors": clean_text_value(r.get("SMEs", "")),
-                    "Start Semester": clean_text_value(r.get("Start Semester", "")),
-                    "End Semester": clean_text_value(r.get("End Semester", "")),
-                    "Semester Status": " | ".join(badges),
-                    "Course Progress": f"{float(r.get('Progress %', 0)):.1f}%"
-                })
+            school_table = d1[["Department", "Course \\ pathway", "SMEs", "Progress %"]].copy()
+            school_table["Department"] = school_table["Department"].apply(clean_text_value)
+            school_table["Course \\ pathway"] = school_table["Course \\ pathway"].apply(clean_text_value)
+            school_table["SMEs"] = school_table["SMEs"].apply(clean_text_value)
+            school_table["Progress %"] = school_table["Progress %"].apply(
+                lambda x: f"{float(x):.1f}%" if not pd.isna(x) else ""
+            )
 
-            school_table = pd.DataFrame(school_rows)
-            st.dataframe(school_table, use_container_width=True)
+            school_table = school_table.rename(columns={
+                "Department": "Department",
+                "Course \\ pathway": "Course",
+                "SMEs": "Instructors",
+                "Progress %": "Course Progress",
+            })
+
+            school_table = school_table.sort_values(["Department", "Course"]).reset_index(drop=True)
+            st.table(school_table)
             return
 
         d2 = d1[d1["Department"] == dept].copy()
 
-        courses = sorted([c for c in d2["Course \\ pathway"].dropna().unique() if clean_text_value(c) != ""])
+        courses = d2["Course \\ pathway"].dropna().unique()
+        courses = [c for c in courses if clean_text_value(c) != ""]
+        courses = sorted(courses)
+
         if len(courses) == 0:
             st.info("No courses found.")
             return
@@ -720,30 +623,18 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         smes_name = clean_text_value(row.get("SMEs", ""))
         id_name = clean_text_value(row.get("ID", ""))
         stage_name = clean_text_value(row.get("Development Stage", ""))
-        start_sem = clean_text_value(row.get("Start Semester", ""))
-        end_sem = clean_text_value(row.get("End Semester", ""))
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader(f"{course} - ({stage_name} Stage)")
-        render_badges(
-            semester_badges(
-                target_semester,
-                row.get("__start_semester_key__", ""),
-                row.get("__end_semester_key__", "")
-            )
-        )
         st.markdown("<hr>", unsafe_allow_html=True)
-        st.write(f"Start Semester: {start_sem if start_sem else '—'}")
-        st.write(f"End Semester: {end_sem if end_sem else '—'}")
-        st.write(f"Dean: {dean_name if dean_name else '—'}")
-        st.write(f"Instructors: {smes_name if smes_name else '—'}")
-        st.write(f"Instructional Designer: {id_name if id_name else '—'}")
+        st.write(f"👨‍🏫 Dean: {dean_name if dean_name else '—'}")
+        st.write(f"📝 SMEs: {smes_name if smes_name else '—'}")
+        st.write(f"🎯 Instructional Designer: {id_name if id_name else '—'}")
 
         tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
-        df_tasks = pd.DataFrame({
-            "Task": tasks,
-            "Completion": ["✅" if is_filled(row.get(t, "")) else "❌" for t in tasks]
-        })
+        df_tasks = pd.DataFrame(
+            {"Task": tasks, "Completion": ["✅" if is_filled(row.get(t, "")) else "❌" for t in tasks]}
+        )
         st.table(df_tasks)
 
         st.subheader("Overall Course Progress")
@@ -753,7 +644,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 
 
 # ==========================
-# Load data
+# Load all data once
 # ==========================
 df_all = load_data()
 df_tlc = load_tlc_sessions()
@@ -776,6 +667,7 @@ page = st.sidebar.radio(
     key="page_selector"
 )
 
+# Clear search when page changes
 if st.session_state["last_page"] != page:
     st.session_state["global_search"] = ""
     st.session_state["last_page"] = page
@@ -806,35 +698,27 @@ if clean_text_value(st.session_state["global_search"]):
 # HOME PAGE
 # ==========================
 elif page == "🏠 Home":
-    st.markdown("<h3 style='text-align:center;'>University Snapshot</h3>", unsafe_allow_html=True)
-
-    home_df = df_all.copy()
-    schools = sorted([s for s in home_df["School"].dropna().unique() if clean_text_value(s) != ""])
-
-    summary = []
-    for school in schools:
-        s_df = home_df[home_df["School"] == school].copy()
-        total = s_df.shape[0]
-        ready = s_df[s_df["Progress %"] >= 100].shape[0]
-        percent = 0 if total == 0 else round((ready / total) * 100, 1)
-        summary.append({
-            "school": school,
-            "total": total,
-            "ready": ready,
-            "percent": percent,
-        })
+    summary = [
+        {"school": "SCI", "total": 37, "ready": 8},
+        {"school": "SET", "total": 69, "ready": 9},
+        {"school": "SBEE", "total": 30, "ready": 2},
+        {"school": "SSBS", "total": 32, "ready": 12},
+    ]
+    for s in summary:
+        s["percent"] = 0 if s["total"] == 0 else round(s["ready"] / s["total"] * 100, 1)
 
     total_courses = sum(s["total"] for s in summary)
     total_ready = sum(s["ready"] for s in summary)
-    total_pct = 0 if total_courses == 0 else round((total_ready / total_courses) * 100, 1)
+    total_pct = 0 if total_courses == 0 else round(total_ready / total_courses * 100, 1)
 
+    st.markdown("<h3 style='text-align:center;'>University Snapshot</h3>", unsafe_allow_html=True)
     total_col = st.columns([1, 2, 1])
     with total_col[1]:
         st.markdown(
             f"""
             <div style='background:#2b2b2b;border-radius:16px;padding:20px;text-align:center;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
               <div style='font-size:22px;font-weight:700;margin-bottom:8px;'>Overall Readiness</div>
-              <div style='font-size:16px;color:#cccccc;margin-bottom:8px;'>{total_ready} of {total_courses} courses completed</div>
+              <div style='font-size:16px;color:#cccccc;margin-bottom:8px;'>{total_ready} of {total_courses} courses ready</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -844,39 +728,38 @@ elif page == "🏠 Home":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if summary:
-        cols = st.columns(len(summary))
-        for i, s in enumerate(summary):
-            with cols[i]:
-                st.markdown(
-                    f"""
-                    <div style="
-                        background:#2b2b2b;
-                        border-radius:16px;
-                        padding:16px;
-                        color:white;
-                        text-align:center;
-                        box-shadow:0 4px 10px rgba(0,0,0,0.25);
-                        display:flex;
-                        flex-direction:column;
-                        justify-content:center;
-                        align-items:center;
-                        height:180px;
-                    ">
-                        <div style="font-size:24px; font-weight:800; margin-bottom:8px; letter-spacing:0.3px;">
-                            {s['school']}
-                        </div>
-                        <div style="font-size:16px; color:#cccccc; margin:0;">
-                            {s['ready']} of {s['total']} completed
-                        </div>
+    cols = st.columns(4)
+    for i, s in enumerate(summary):
+        with cols[i]:
+            st.markdown(
+                f"""
+                <div style="
+                    background:#2b2b2b;
+                    border-radius:16px;
+                    padding:16px;
+                    color:white;
+                    text-align:center;
+                    box-shadow:0 4px 10px rgba(0,0,0,0.25);
+                    display:flex;
+                    flex-direction:column;
+                    justify-content:center;
+                    align-items:center;
+                    height:180px;
+                ">
+                    <div style="font-size:24px; font-weight:800; margin-bottom:8px; letter-spacing:0.3px;">
+                        {s['school']}
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-                st.progress(int(s["percent"]))
-                st.caption(f"Completion: {s['percent']:.1f}%")
-    else:
-        st.info("No school data found.")
+                    <div style="font-size:16px; color:#cccccc; margin:0;">
+                        {s['ready']} of {s['total']} ready
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.progress(int(s["percent"]))
+            st.caption(f"Progress: {s['percent']:.1f}%")
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================
 # INSTRUCTORS TAB
@@ -884,14 +767,15 @@ elif page == "🏠 Home":
 elif page == "🏫 Instructors":
     st.subheader("Instructors")
 
-    school_options = sorted([s for s in df_all["School"].dropna().unique() if clean_text_value(s) != ""])
+    school_options = sorted(df_all["School"].dropna().unique())
     if len(school_options) == 0:
         st.info("No schools found.")
     else:
         school = st.sidebar.selectbox("Select School", school_options)
         df_s = df_all[df_all["School"] == school]
 
-        department_options = sorted([d for d in df_s["Department"].dropna().unique() if clean_text_value(d) != ""])
+        department_options = sorted(df_s["Department"].dropna().unique())
+        department_options = [d for d in department_options if clean_text_value(d) != ""]
         if len(department_options) == 0:
             st.info("No departments found for the selected school.")
         else:
@@ -919,7 +803,7 @@ elif page == "🏫 Instructors":
                 st.write(f"Department: {department}")
                 st.write(f"Instructor: {instructor}")
 
-                st.subheader("Courses & Semester Span")
+                st.subheader("Courses & Semesters")
                 if df_i.shape[0] == 0:
                     st.info("No courses found for this instructor in the selected School/Department.")
                 else:
@@ -934,8 +818,7 @@ elif page == "🏫 Instructors":
                                 worked_blocks.append(b)
 
                         rows.append({
-                            "Start Semester": clean_text_value(r.get("Start Semester", "")),
-                            "End Semester": clean_text_value(r.get("End Semester", "")),
+                            "Semester": clean_text_value(r.get("Semester", "")),
                             "Course": clean_text_value(r.get("Course \\ pathway", "")),
                             "Total Progress": "" if pd.isna(r.get("Progress %", np.nan)) else f"{float(r.get('Progress %')):.1f}%",
                             "Detailed Outline": "✅" if do_worked else "❌",
@@ -943,8 +826,13 @@ elif page == "🏫 Instructors":
                         })
 
                     report = pd.DataFrame(rows)
-                    report = report.drop_duplicates().sort_values(["Start Semester", "Course"]).reset_index(drop=True)
-                    st.dataframe(report, use_container_width=True)
+                    report = (
+                        report.dropna(subset=["Semester", "Course"])
+                        .drop_duplicates()
+                        .sort_values(["Semester", "Course"])
+                        .reset_index(drop=True)
+                    )
+                    st.table(report)
 
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("Notes")
@@ -952,8 +840,7 @@ elif page == "🏫 Instructors":
                     notes_items = []
                     for _, r in df_i.iterrows():
                         course_name = clean_text_value(r.get("Course \\ pathway", ""))
-                        start_sem = clean_text_value(r.get("Start Semester", ""))
-                        end_sem = clean_text_value(r.get("End Semester", ""))
+                        semester = clean_text_value(r.get("Semester", ""))
 
                         worked_any = False
                         if instructor_mentioned_in_cell(r.get("Detailed Outline", ""), instructor):
@@ -967,7 +854,7 @@ elif page == "🏫 Instructors":
                         note_txt = clean_text_value(r.get("Notes", ""))
                         if worked_any and note_txt:
                             notes_items.append({
-                                "Semester Span": f"{start_sem} → {end_sem}",
+                                "Semester": semester,
                                 "Course": course_name,
                                 "Notes": note_txt,
                             })
@@ -975,9 +862,14 @@ elif page == "🏫 Instructors":
                     if len(notes_items) == 0:
                         st.info("No notes found for the selected instructor.")
                     else:
-                        notes_df = pd.DataFrame(notes_items).drop_duplicates().sort_values(["Semester Span", "Course"]).reset_index(drop=True)
+                        notes_df = (
+                            pd.DataFrame(notes_items)
+                            .drop_duplicates()
+                            .sort_values(["Semester", "Course"])
+                            .reset_index(drop=True)
+                        )
                         for _, item in notes_df.iterrows():
-                            st.markdown(f"• **{item['Semester Span']} — {item['Course']}**: {item['Notes']}")
+                            st.markdown(f"• **{item['Semester']} — {item['Course']}**: {item['Notes']}")
 
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("TLC Sessions Progress")
@@ -991,7 +883,7 @@ elif page == "🏫 Instructors":
                             tlc_match = df_tlc[df_tlc["__name_key__"].apply(lambda x: instructor_key in str(x) or str(x) in instructor_key)].copy()
 
                     if tlc_match.shape[0] == 0:
-                        st.info("No TLC session data found for this instructor.")
+                        st.info("No TLC session data found for this instructor (in the 4 TLC sheets).")
                     else:
                         session_cols = [
                             c for c in tlc_match.columns
@@ -1000,7 +892,9 @@ elif page == "🏫 Instructors":
                             and not str(c).strip().lower().startswith("unnamed")
                         ]
 
-                        merged = {c: bool(tlc_match[c].fillna(False).astype(bool).any()) for c in session_cols}
+                        merged = {}
+                        for c in session_cols:
+                            merged[c] = bool(tlc_match[c].fillna(False).astype(bool).any())
 
                         session_rows = []
                         completed = 0
