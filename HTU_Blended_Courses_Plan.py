@@ -158,6 +158,84 @@ def normalize_semester_label(s: str) -> str:
     return replacements.get(s, s)
 
 
+def normalize_search_text(s: str) -> str:
+    s = clean_text_value(s).lower()
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def row_search_blob(row: pd.Series) -> str:
+    searchable_cols = [
+        "Semester",
+        "School",
+        "Department",
+        "Course \\ pathway",
+        "Development Stage",
+        "Dept. Head",
+        "SMEs",
+        "ID",
+        "Detailed Outline",
+        "Notes",
+    ] + [f"Block {i}" for i in range(1, 16)]
+
+    parts = []
+    for col in searchable_cols:
+        parts.append(clean_text_value(row.get(col, "")))
+    return normalize_search_text(" | ".join(parts))
+
+
+def search_matches(df: pd.DataFrame, query: str) -> pd.DataFrame:
+    q = normalize_search_text(query)
+    if not q:
+        return df.iloc[0:0].copy()
+
+    tokens = [t for t in q.split() if t]
+    if not tokens:
+        return df.iloc[0:0].copy()
+
+    blobs = df.apply(row_search_blob, axis=1)
+
+    mask = pd.Series(True, index=df.index)
+    for token in tokens:
+        mask = mask & blobs.str.contains(re.escape(token), na=False)
+
+    result = df[mask].copy()
+    return result
+
+
+def get_instructor_tlc_summary(df_tlc: pd.DataFrame, instructor_name: str):
+    instructor_key = normalize_person_name(instructor_name)
+    tlc_match = df_tlc[df_tlc["__name_key__"] == instructor_key].copy()
+
+    if tlc_match.shape[0] == 0 and df_tlc.shape[0] > 0:
+        tlc_match = df_tlc[df_tlc["__name_key__"].astype(str).str.contains(re.escape(instructor_key), na=False)].copy()
+        if tlc_match.shape[0] == 0:
+            tlc_match = df_tlc[df_tlc["__name_key__"].apply(lambda x: instructor_key in str(x) or str(x) in instructor_key)].copy()
+
+    if tlc_match.shape[0] == 0:
+        return None
+
+    session_cols = [
+        c for c in tlc_match.columns
+        if c not in {"Instructor Name", "__name_key__"}
+        and str(c).strip() != ""
+        and not str(c).strip().lower().startswith("unnamed")
+    ]
+
+    completed = 0
+    total = len(session_cols)
+    for c in session_cols:
+        if bool(tlc_match[c].fillna(False).astype(bool).any()):
+            completed += 1
+
+    pct = 0 if total == 0 else (completed / total) * 100
+    return {
+        "completed": completed,
+        "total": total,
+        "pct": pct
+    }
+
+
 # ==========================
 # Load Courses Data
 # ==========================
@@ -291,6 +369,116 @@ def load_tlc_sessions():
 
 
 # ==========================
+# Search Renderer
+# ==========================
+def render_search_results(df_all: pd.DataFrame, df_tlc: pd.DataFrame, query: str):
+    st.subheader(f"Search Results for: {query}")
+
+    result = search_matches(df_all, query)
+
+    if result.empty:
+        st.warning("No matching results found.")
+        return
+
+    st.markdown(
+        f"""
+        <div style='background:#2b2b2b;border-radius:14px;padding:16px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);margin-bottom:20px;'>
+            <div style='font-size:22px;font-weight:700;'>Found {result.shape[0]} matching record(s)</div>
+            <div style='font-size:14px;color:#cccccc;'>Search works across school, department, course, instructor, semester, notes, stage, dean, and ID.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Summary table
+    summary_table = result[[
+        "Semester", "School", "Department", "Course \\ pathway",
+        "SMEs", "Dept. Head", "ID", "Development Stage", "Progress %"
+    ]].copy()
+
+    summary_table["Progress %"] = summary_table["Progress %"].apply(
+        lambda x: f"{float(x):.1f}%" if not pd.isna(x) else ""
+    )
+
+    summary_table = summary_table.rename(columns={
+        "Course \\ pathway": "Course",
+        "SMEs": "Instructors",
+        "Dept. Head": "Dean",
+        "ID": "Instructional Designer",
+        "Development Stage": "Stage",
+        "Progress %": "Progress",
+    })
+
+    st.subheader("Matching Records")
+    st.dataframe(summary_table, use_container_width=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Detailed results
+    st.subheader("Detailed View")
+
+    for idx, (_, row) in enumerate(result.iterrows(), start=1):
+        course = clean_text_value(row.get("Course \\ pathway", ""))
+        school = clean_text_value(row.get("School", ""))
+        department = clean_text_value(row.get("Department", ""))
+        semester = clean_text_value(row.get("Semester", ""))
+        instructors = clean_text_value(row.get("SMEs", ""))
+        dean = clean_text_value(row.get("Dept. Head", ""))
+        instructional_designer = clean_text_value(row.get("ID", ""))
+        stage = clean_text_value(row.get("Development Stage", ""))
+        notes = clean_text_value(row.get("Notes", ""))
+        progress = row.get("Progress %", np.nan)
+
+        with st.expander(f"{idx}. {course} | {school} | {semester}", expanded=(idx == 1)):
+            c1, c2 = st.columns([2, 1])
+
+            with c1:
+                st.write(f"School: {school if school else '—'}")
+                st.write(f"Department: {department if department else '—'}")
+                st.write(f"Semester: {semester if semester else '—'}")
+                st.write(f"Course: {course if course else '—'}")
+                st.write(f"Development Stage: {stage if stage else '—'}")
+                st.write(f"Dean: {dean if dean else '—'}")
+                st.write(f"Instructors: {instructors if instructors else '—'}")
+                st.write(f"Instructional Designer: {instructional_designer if instructional_designer else '—'}")
+                st.write(f"Notes: {notes if notes else '—'}")
+
+            with c2:
+                pct = 0 if pd.isna(progress) else float(progress)
+                st.progress(int(pct))
+                st.write(f"Course Progress: {pct:.1f}%")
+
+            tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
+            task_rows = []
+            for t in tasks:
+                task_rows.append({
+                    "Task": t,
+                    "Completion": "✅" if is_filled(row.get(t, "")) else "❌"
+                })
+
+            st.markdown("Task Completion")
+            st.table(pd.DataFrame(task_rows))
+
+            instructor_list = split_instructors(instructors)
+            if instructor_list:
+                st.markdown("Instructor TLC Summary")
+                tlc_rows = []
+                for inst in instructor_list:
+                    tlc_summary = get_instructor_tlc_summary(df_tlc, inst)
+                    if tlc_summary is None:
+                        tlc_rows.append({
+                            "Instructor": inst,
+                            "TLC Progress": "No TLC data found"
+                        })
+                    else:
+                        tlc_rows.append({
+                            "Instructor": inst,
+                            "TLC Progress": f"{tlc_summary['completed']} / {tlc_summary['total']} ({tlc_summary['pct']:.1f}%)"
+                        })
+                st.table(pd.DataFrame(tlc_rows))
+
+
+# ==========================
 # Semester Page Renderer
 # ==========================
 def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, key_prefix: str):
@@ -366,7 +554,6 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
             key=f"{key_prefix}_dept"
         )
 
-        # Show overview only before a department is selected
         if dept == "— Select Department —":
             course_count = d1.shape[0]
 
@@ -456,6 +643,11 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 st.sidebar.image("htu_logo.png", use_container_width=True)
 st.sidebar.markdown("<hr style='border:1px solid #d04546'>", unsafe_allow_html=True)
 
+global_search = st.sidebar.text_input(
+    "Search",
+    placeholder="Course, instructor, school, department..."
+)
+
 page = st.sidebar.radio(
     "Go to",
     [
@@ -484,9 +676,15 @@ df_all = load_data()
 df_tlc = load_tlc_sessions()
 
 # ==========================
+# GLOBAL SEARCH PRIORITY
+# ==========================
+if clean_text_value(global_search):
+    render_search_results(df_all, df_tlc, global_search)
+
+# ==========================
 # HOME PAGE
 # ==========================
-if page == "🏠 Home":
+elif page == "🏠 Home":
     summary = [
         {"school": "SCI", "total": 37, "ready": 8},
         {"school": "SET", "total": 69, "ready": 9},
@@ -553,7 +751,7 @@ if page == "🏠 Home":
 # ==========================
 # INSTRUCTORS TAB
 # ==========================
-if page == "🏫 Instructors":
+elif page == "🏫 Instructors":
     st.subheader("Instructors")
 
     school_options = sorted(df_all["School"].dropna().unique())
@@ -705,13 +903,13 @@ if page == "🏫 Instructors":
 # ==========================
 # SEMESTER PAGES
 # ==========================
-if page == "🌱 Spring 2024/2025":
+elif page == "🌱 Spring 2024/2025":
     render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
 
-if page == "🍂 Fall 2025/2026":
+elif page == "🍂 Fall 2025/2026":
     render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
 
-if page == "🌸 Spring 2025/2026":
+elif page == "🌸 Spring 2025/2026":
     render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
 
 # ==========================
