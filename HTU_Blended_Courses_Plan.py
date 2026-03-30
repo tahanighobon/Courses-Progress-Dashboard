@@ -1,922 +1,1000 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import re
-
-st.set_page_config(layout="wide")
-
-# ==========================
-# URLs
-# ==========================
-DATA_URL = "https://docs.google.com/spreadsheets/d/1EL31srR2r_CXmSXEjGprdWCH3HByT5HLGFlsEhImBBM/gviz/tq?tqx=out:csv&sheet=2013"
-
-TLC_SHEETS = [
-    "https://docs.google.com/spreadsheets/d/1y7mPQzNxkGXMKqBVEk1X_icALvotanOkL3HL885sMAY/gviz/tq?tqx=out:csv&gid=0",
-    "https://docs.google.com/spreadsheets/d/1Ksh_5KUAyuE_H_rJkf0vDRvSKJxvyt2sYSzDgLwR5Nw/gviz/tq?tqx=out:csv&gid=0",
-    "https://docs.google.com/spreadsheets/d/1bRHPX7vvU49A0Q_WzaKhNwhjqS9ketpEJKU64GLSIuM/gviz/tq?tqx=out:csv&gid=0",
-    "https://docs.google.com/spreadsheets/d/1B5o0uBdFrR-pGT9dxStLorAgWx3XUYyN6I-yiBZlMcc/gviz/tq?tqx=out:csv&gid=0",
-]
-
-# ==========================
-# Helpers
-# ==========================
-def is_filled(x) -> bool:
-    if x is None or (isinstance(x, float) and pd.isna(x)):
-        return False
-    s = str(x).strip()
-    if s == "":
-        return False
-    if s.lower() in {"nan", "none", "null"}:
-        return False
-    return True
-
-
-def clean_text_value(x) -> str:
-    if x is None or (isinstance(x, float) and pd.isna(x)):
-        return ""
-    s = str(x).strip()
-    if s.lower() in {"nan", "none", "null"}:
-        return ""
-    return s
-
-
-def norm_bool(x) -> bool:
-    if isinstance(x, bool):
-        return x
-    if x is None or (isinstance(x, float) and pd.isna(x)):
-        return False
-    s = str(x).strip().lower()
-    return s in {"true", "yes", "1", "✓", "✔", "✅", "done"}
-
-
-def render_donut_chart(percent: float, key: str, size_px=170):
-    pct = 0.0 if pd.isna(percent) else float(percent)
-    pct = max(0.0, min(100.0, pct))
-
-    fig = go.Figure(
-        data=[go.Pie(
-            values=[pct, max(0, 100 - pct)],
-            labels=["Progress", "Remaining"],
-            hole=0.6,
-            direction="clockwise",
-            sort=False,
-            marker=dict(colors=["#d04546", "#2b2b2b"]),
-            textinfo="none",
-        )]
-    )
-
-    fig.update_layout(
-        showlegend=False,
-        margin=dict(t=0, b=0, l=0, r=0),
-        width=size_px,
-        height=size_px,
-        paper_bgcolor="rgba(0,0,0,0)",
-        annotations=[
-            dict(
-                text=f"<b>{pct:.0f}%</b>",
-                x=0.5, y=0.5,
-                font_size=18,
-                showarrow=False,
-                font_color="white",
-            )
-        ],
-    )
-    st.plotly_chart(fig, use_container_width=True, key=key)
-
-
-def clean_name(name: str) -> str:
-    n = "" if name is None else str(name)
-    n = n.replace("\n", " ").replace("\r", " ").strip()
-    n = re.sub(r"\s+", " ", n)
-    n = n.strip(" ,;")
-    return n
-
-
-def normalize_person_name(name: str) -> str:
-    n = clean_name(name).lower()
-    n = n.replace("eng.", " ").replace("eng", " ")
-    n = re.sub(r"[^a-z0-9\s]", " ", n)
-    n = re.sub(r"\s+", " ", n).strip()
-    return n
-
-
-def split_instructors(s: str):
-    if s is None or (isinstance(s, float) and pd.isna(s)):
-        return []
-    txt = str(s).replace("\n", ",")
-    parts = [clean_name(p) for p in txt.split(",")]
-    return [p for p in parts if p and p.lower() not in {"nan", "none", "null"}]
-
-
-def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:
-    if not is_filled(cell_value):
-        return False
-    txt = clean_name(str(cell_value)).lower()
-    inst = clean_name(instructor_name).lower()
-    return inst in txt
-
-
-def compute_progress_percent(row: pd.Series, df_columns: list) -> float:
-    detailed_col = "Detailed Outline"
-    blocks = [f"Block {i}" for i in range(1, 16)]
-
-    do_done = is_filled(row.get(detailed_col, "")) if detailed_col in df_columns else False
-    do_score = 0.20 if do_done else 0.0
-
-    block_weight = 0.80 / 15.0
-    blocks_score = 0.0
-    for b in blocks:
-        if b in df_columns and is_filled(row.get(b, "")):
-            blocks_score += block_weight
-
-    return (do_score + blocks_score) * 100.0
-
-
-def normalize_semester_label(s: str) -> str:
-    s = "" if s is None else str(s).strip().lower()
-    s = s.replace("-", " ")
-    s = re.sub(r"\s+", " ", s)
-
-    replacements = {
-        "spring 24/25": "spring 2024/2025",
-        "spring 2024/25": "spring 2024/2025",
-        "spring 24/2025": "spring 2024/2025",
-        "spring 2024/2025": "spring 2024/2025",
-
-        "fall 25/26": "fall 2025/2026",
-        "fall 2025/26": "fall 2025/2026",
-        "fall 25/2026": "fall 2025/2026",
-        "fall 2025/2026": "fall 2025/2026",
-
-        "spring 25/26": "spring 2025/2026",
-        "spring 2025/26": "spring 2025/2026",
-        "spring 25/2026": "spring 2025/2026",
-        "spring 2025/2026": "spring 2025/2026",
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTU Course Development Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(11, 23, 42, 0.88);
+      --panel-2: rgba(16, 31, 57, 0.95);
+      --line: rgba(255,255,255,0.08);
+      --text: #e8eefc;
+      --muted: #97a8cb;
+      --accent: #7dd3fc;
+      --accent-2: #a78bfa;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #fb7185;
     }
 
-    return replacements.get(s, s)
-
-
-def normalize_search_text(s: str) -> str:
-    s = clean_text_value(s).lower()
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
-
-
-def row_search_blob(row: pd.Series) -> str:
-    searchable_cols = [
-        "Semester",
-        "School",
-        "Department",
-        "Course \\ pathway",
-        "Development Stage",
-        "Dept. Head",
-        "SMEs",
-        "ID",
-        "Detailed Outline",
-        "Notes",
-    ] + [f"Block {i}" for i in range(1, 16)]
-
-    parts = []
-    for col in searchable_cols:
-        parts.append(clean_text_value(row.get(col, "")))
-    return normalize_search_text(" | ".join(parts))
-
-
-def search_matches(df: pd.DataFrame, query: str) -> pd.DataFrame:
-    q = normalize_search_text(query)
-    if not q:
-        return df.iloc[0:0].copy()
-
-    tokens = [t for t in q.split() if t]
-    if not tokens:
-        return df.iloc[0:0].copy()
-
-    blobs = df.apply(row_search_blob, axis=1)
-
-    mask = pd.Series(True, index=df.index)
-    for token in tokens:
-        mask = mask & blobs.str.contains(re.escape(token), na=False)
-
-    result = df[mask].copy()
-    return result
-
-
-def get_instructor_tlc_summary(df_tlc: pd.DataFrame, instructor_name: str):
-    instructor_key = normalize_person_name(instructor_name)
-    tlc_match = df_tlc[df_tlc["__name_key__"] == instructor_key].copy()
-
-    if tlc_match.shape[0] == 0 and df_tlc.shape[0] > 0:
-        tlc_match = df_tlc[df_tlc["__name_key__"].astype(str).str.contains(re.escape(instructor_key), na=False)].copy()
-        if tlc_match.shape[0] == 0:
-            tlc_match = df_tlc[df_tlc["__name_key__"].apply(lambda x: instructor_key in str(x) or str(x) in instructor_key)].copy()
-
-    if tlc_match.shape[0] == 0:
-        return None
-
-    session_cols = [
-        c for c in tlc_match.columns
-        if c not in {"Instructor Name", "__name_key__"}
-        and str(c).strip() != ""
-        and not str(c).strip().lower().startswith("unnamed")
-    ]
-
-    completed = 0
-    total = len(session_cols)
-    for c in session_cols:
-        if bool(tlc_match[c].fillna(False).astype(bool).any()):
-            completed += 1
-
-    pct = 0 if total == 0 else (completed / total) * 100
-    return {
-        "completed": completed,
-        "total": total,
-        "pct": pct
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(125,211,252,0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(167,139,250,0.12), transparent 25%),
+        linear-gradient(180deg, #030712 0%, #07111f 100%);
+      color: var(--text);
+      min-height: 100vh;
     }
 
+    .glass {
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--line);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.28);
+    }
 
-# ==========================
-# Load Courses Data
-# ==========================
-@st.cache_data
-def load_data():
-    df = pd.read_csv(DATA_URL)
-    df.columns = df.columns.astype(str).str.strip()
+    .glass-soft {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.22);
+    }
 
-    for possible in [
-        "Course \\ pathway",
-        "Course \\\\ pathway",
-        "Course / pathway",
-        "Course pathway",
-        "Course \\pathway",
-        "Course  pathway",
-    ]:
-        if possible in df.columns and possible != "Course \\ pathway":
-            df = df.rename(columns={possible: "Course \\ pathway"})
+    .pill {
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
 
-    base_text_cols = [
-        "Semester",
-        "School",
-        "Department",
-        "Course \\ pathway",
-        "Development Stage",
-        "Dept. Head",
-        "SMEs",
-        "ID",
-    ]
-    for col in base_text_cols:
-        if col not in df.columns:
-            df[col] = ""
+    .filter-select, .search-input {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: var(--text);
+    }
 
-    if "Detailed Outline" not in df.columns:
-        df["Detailed Outline"] = ""
+    .filter-select:focus, .search-input:focus {
+      outline: none;
+      border-color: rgba(125,211,252,0.7);
+      box-shadow: 0 0 0 3px rgba(125,211,252,0.15);
+    }
 
-    for i in range(1, 16):
-        c = f"Block {i}"
-        if c not in df.columns:
-            df[c] = ""
+    .metric-card {
+      position: relative;
+      overflow: hidden;
+    }
 
-    if "Notes" not in df.columns:
-        df["Notes"] = ""
+    .metric-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -20% -55% auto;
+      width: 140px;
+      height: 140px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(125,211,252,0.18), transparent 65%);
+    }
 
-    text_cols = [
-        "Semester",
-        "School",
-        "Department",
-        "Course \\ pathway",
-        "Development Stage",
-        "Dept. Head",
-        "SMEs",
-        "ID",
-        "Detailed Outline",
-        "Notes",
-    ] + [f"Block {i}" for i in range(1, 16)]
+    .mini-label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
 
-    for c in text_cols:
-        if c in df.columns:
-            df[c] = df[c].fillna("").astype(str).str.strip()
-            df[c] = df[c].replace({"nan": "", "None": "", "null": "", "NaN": ""})
+    .progress-track {
+      background: rgba(255,255,255,0.07);
+      border-radius: 999px;
+      overflow: hidden;
+      height: 9px;
+    }
 
-    df["Progress %"] = df.apply(lambda r: compute_progress_percent(r, df.columns.tolist()), axis=1)
-    df["__semester_key__"] = df["Semester"].apply(normalize_semester_label)
+    .progress-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
 
-    return df
+    .table-wrap::-webkit-scrollbar { height: 10px; width: 10px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
 
+    .status-chip {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
 
-# ==========================
-# Load TLC Sessions Data
-# ==========================
-@st.cache_data
-def load_tlc_sessions():
-    frames = []
-    for url in TLC_SHEETS:
-        try:
-            d = pd.read_csv(url)
-        except Exception:
-            continue
+    .status-development { background: rgba(52,211,153,0.12); color: #86efac; border-color: rgba(52,211,153,0.25); }
+    .status-review { background: rgba(251,191,36,0.12); color: #fde68a; border-color: rgba(251,191,36,0.24); }
+    .status-planning { background: rgba(125,211,252,0.12); color: #bae6fd; border-color: rgba(125,211,252,0.24); }
+    .status-other { background: rgba(167,139,250,0.12); color: #ddd6fe; border-color: rgba(167,139,250,0.24); }
 
-        d.columns = d.columns.astype(str).str.strip()
+    .tab-btn.active {
+      background: linear-gradient(90deg, rgba(125,211,252,0.18), rgba(167,139,250,0.16));
+      color: white;
+      border-color: rgba(125,211,252,0.25);
+    }
 
-        name_col = None
-        for c in d.columns:
-            if c.strip().lower() in {"instructor name", "istructor name", "instructor", "name"}:
-                name_col = c
-                break
-        if name_col is None:
-            name_col = d.columns[0]
+    .loading-shimmer {
+      background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite linear;
+      border-radius: 1rem;
+    }
 
-        d = d.rename(columns={name_col: "Instructor Name"})
-
-        for c in d.columns:
-            if c == "Instructor Name":
-                continue
-            d[c] = d[c].apply(norm_bool)
-
-        d["__name_key__"] = d["Instructor Name"].apply(normalize_person_name)
-        frames.append(d)
-
-    if not frames:
-        return pd.DataFrame(columns=["Instructor Name", "__name_key__"])
-
-    all_df = pd.concat(frames, ignore_index=True)
-
-    session_cols = [
-        c for c in all_df.columns
-        if c not in {"Instructor Name", "__name_key__"}
-        and str(c).strip() != ""
-        and not str(c).strip().lower().startswith("unnamed")
-    ]
-
-    def first_non_empty(values):
-        for v in values:
-            if is_filled(v):
-                return v
-        return values[0] if values else ""
-
-    grouped = all_df.groupby("__name_key__", dropna=False)
-    out_rows = []
-    for key, g in grouped:
-        row = {
-            "__name_key__": key,
-            "Instructor Name": first_non_empty(g["Instructor Name"].tolist()),
-        }
-        for c in session_cols:
-            row[c] = bool(g[c].fillna(False).astype(bool).any())
-        out_rows.append(row)
-
-    return pd.DataFrame(out_rows)
-
-
-# ==========================
-# Search Renderer
-# ==========================
-def render_search_results(df_all: pd.DataFrame, df_tlc: pd.DataFrame, query: str):
-    st.subheader(f"Search Results for: {query}")
-
-    result = search_matches(df_all, query)
-
-    if result.empty:
-        st.warning("No matching results found.")
-        return
-
-    st.markdown(
-        f"""
-        <div style='background:#2b2b2b;border-radius:14px;padding:16px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);margin-bottom:20px;'>
-            <div style='font-size:22px;font-weight:700;'>Found {result.shape[0]} matching record(s)</div>
-            <div style='font-size:14px;color:#cccccc;'>Search works across school, department, course, instructor, semester, notes, stage, dean, and ID.</div>
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+  </style>
+</head>
+<body class="px-4 py-6 md:px-8 lg:px-10">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <header class="glass rounded-3xl p-6 md:p-8">
+      <div class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <div class="space-y-4 max-w-3xl">
+          <div class="flex flex-wrap items-center gap-2 text-sm text-sky-200">
+            <span class="pill rounded-full px-3 py-1">Interactive HTML Dashboard</span>
+            <span class="pill rounded-full px-3 py-1">Smart Filtering</span>
+            <span class="pill rounded-full px-3 py-1">Semester • Course • Instructor</span>
+          </div>
+          <div>
+            <h1 class="text-3xl md:text-4xl font-semibold tracking-tight">HTU Course Development Dashboard</h1>
+            <p class="text-slate-300 mt-3 leading-7 max-w-2xl">
+              Explore course development progress and TLC participation from one place. The dashboard automatically adapts the insights based on the selected semester, course, instructor, school, or department.
+            </p>
+          </div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-    # Summary table
-    summary_table = result[[
-        "Semester", "School", "Department", "Course \\ pathway",
-        "SMEs", "Dept. Head", "ID", "Development Stage", "Progress %"
-    ]].copy()
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 w-full xl:w-auto xl:min-w-[480px]" id="heroSummary">
+          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
+          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
+          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
+          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
+        </div>
+      </div>
+    </header>
 
-    summary_table["Progress %"] = summary_table["Progress %"].apply(
-        lambda x: f"{float(x):.1f}%" if not pd.isna(x) else ""
-    )
+    <section class="glass rounded-3xl p-5 md:p-6 space-y-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-semibold">Filters</h2>
+          <p class="text-slate-400 text-sm mt-1">All filters work together. Choosing a course or instructor updates the KPIs, charts, and detail tables.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button id="clearFiltersBtn" class="px-4 py-2 rounded-xl pill text-sm hover:bg-white/10 transition">Clear filters</button>
+          <button id="exportBtn" class="px-4 py-2 rounded-xl bg-sky-400/15 border border-sky-300/20 text-sky-100 text-sm hover:bg-sky-400/20 transition">Export current table CSV</button>
+        </div>
+      </div>
 
-    summary_table = summary_table.rename(columns={
-        "Course \\ pathway": "Course",
-        "SMEs": "Instructors",
-        "Dept. Head": "Dean",
-        "ID": "Instructional Designer",
-        "Development Stage": "Stage",
-        "Progress %": "Progress",
-    })
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+        <div>
+          <label class="mini-label block mb-2">Semester</label>
+          <select id="semesterFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+        </div>
+        <div>
+          <label class="mini-label block mb-2">School</label>
+          <select id="schoolFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+        </div>
+        <div>
+          <label class="mini-label block mb-2">Department</label>
+          <select id="departmentFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+        </div>
+        <div>
+          <label class="mini-label block mb-2">Course</label>
+          <select id="courseFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+        </div>
+        <div>
+          <label class="mini-label block mb-2">Instructor</label>
+          <select id="instructorFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+        </div>
+        <div>
+          <label class="mini-label block mb-2">Search</label>
+          <input id="searchInput" class="search-input w-full rounded-2xl px-4 py-3 text-sm" placeholder="Search course, SME, PM, dept..." />
+        </div>
+      </div>
 
-    st.subheader("Matching Records")
-    st.dataframe(summary_table, use_container_width=True)
+      <div class="flex flex-wrap gap-2" id="activeFilterChips"></div>
+    </section>
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="metricCards"></section>
 
-    # Detailed results
-    st.subheader("Detailed View")
+    <section class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-7 space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-semibold">Progress overview</h3>
+            <p class="text-sm text-slate-400">Changes based on the current filter context.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button class="tab-btn active px-3 py-2 rounded-xl pill text-sm transition" data-chart-view="school">By school</button>
+            <button class="tab-btn px-3 py-2 rounded-xl pill text-sm transition" data-chart-view="department">By department</button>
+            <button class="tab-btn px-3 py-2 rounded-xl pill text-sm transition" data-chart-view="course">Top courses</button>
+          </div>
+        </div>
+        <div class="h-[360px]">
+          <canvas id="progressChart"></canvas>
+        </div>
+      </div>
 
-    for idx, (_, row) in enumerate(result.iterrows(), start=1):
-        course = clean_text_value(row.get("Course \\ pathway", ""))
-        school = clean_text_value(row.get("School", ""))
-        department = clean_text_value(row.get("Department", ""))
-        semester = clean_text_value(row.get("Semester", ""))
-        instructors = clean_text_value(row.get("SMEs", ""))
-        dean = clean_text_value(row.get("Dept. Head", ""))
-        instructional_designer = clean_text_value(row.get("ID", ""))
-        stage = clean_text_value(row.get("Development Stage", ""))
-        notes = clean_text_value(row.get("Notes", ""))
-        progress = row.get("Progress %", np.nan)
+      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-5 space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold">Development stage mix</h3>
+          <p class="text-sm text-slate-400">Distribution of the currently visible courses.</p>
+        </div>
+        <div class="h-[360px]">
+          <canvas id="stageChart"></canvas>
+        </div>
+      </div>
+    </section>
 
-        with st.expander(f"{idx}. {course} | {school} | {semester}", expanded=(idx == 1)):
-            c1, c2 = st.columns([2, 1])
+    <section class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-5 space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold">Instructor insight</h3>
+          <p class="text-sm text-slate-400">If an instructor is selected, this panel becomes instructor-specific. Otherwise it shows the top contributors in the current view.</p>
+        </div>
+        <div class="h-[340px]">
+          <canvas id="instructorChart"></canvas>
+        </div>
+      </div>
 
-            with c1:
-                st.write(f"School: {school if school else '—'}")
-                st.write(f"Department: {department if department else '—'}")
-                st.write(f"Semester: {semester if semester else '—'}")
-                st.write(f"Course: {course if course else '—'}")
-                st.write(f"Development Stage: {stage if stage else '—'}")
-                st.write(f"Dean: {dean if dean else '—'}")
-                st.write(f"Instructors: {instructors if instructors else '—'}")
-                st.write(f"Instructional Designer: {instructional_designer if instructional_designer else '—'}")
-                st.write(f"Notes: {notes if notes else '—'}")
+      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-7 space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold">TLC completion snapshot</h3>
+          <p class="text-sm text-slate-400">Instructor training completion pulled from the TLC sheets and connected to the main data.</p>
+        </div>
+        <div id="tlcPanel" class="space-y-3"></div>
+      </div>
+    </section>
 
-            with c2:
-                pct = 0 if pd.isna(progress) else float(progress)
-                st.progress(int(pct))
-                st.write(f"Course Progress: {pct:.1f}%")
+    <section class="glass rounded-3xl p-5 md:p-6 space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold">Detailed records</h3>
+          <p class="text-sm text-slate-400">The table reflects all active filters and search terms.</p>
+        </div>
+        <div class="text-sm text-slate-400" id="tableCount"></div>
+      </div>
 
-            tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
-            task_rows = []
-            for t in tasks:
-                task_rows.append({
-                    "Task": t,
-                    "Completion": "✅" if is_filled(row.get(t, "")) else "❌"
-                })
+      <div class="table-wrap overflow-auto rounded-2xl border border-white/10">
+        <table class="min-w-full text-sm">
+          <thead class="bg-white/5 sticky top-0">
+            <tr class="text-left text-slate-300">
+              <th class="px-4 py-3 font-medium">Semester</th>
+              <th class="px-4 py-3 font-medium">School</th>
+              <th class="px-4 py-3 font-medium">Department</th>
+              <th class="px-4 py-3 font-medium">Course</th>
+              <th class="px-4 py-3 font-medium">Stage</th>
+              <th class="px-4 py-3 font-medium">PM</th>
+              <th class="px-4 py-3 font-medium">SMEs</th>
+              <th class="px-4 py-3 font-medium">Progress</th>
+              <th class="px-4 py-3 font-medium">Completed items</th>
+            </tr>
+          </thead>
+          <tbody id="recordsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 
-            st.markdown("Task Completion")
-            st.table(pd.DataFrame(task_rows))
+  <script>
+    const DATA_URL = "https://docs.google.com/spreadsheets/d/1EL31srR2r_CXmSXEjGprdWCH3HByT5HLGFlsEhImBBM/gviz/tq?tqx=out:csv&sheet=2013";
+    const TLC_SHEETS = [
+      "https://docs.google.com/spreadsheets/d/1y7mPQzNxkGXMKqBVEk1X_icALvotanOkL3HL885sMAY/gviz/tq?tqx=out:csv&gid=0",
+      "https://docs.google.com/spreadsheets/d/1Ksh_5KUAyuE_H_rJkf0vDRvSKJxvyt2sYSzDgLwR5Nw/gviz/tq?tqx=out:csv&gid=0",
+      "https://docs.google.com/spreadsheets/d/1bRHPX7vvU49A0Q_WzaKhNwhjqS9ketpEJKU64GLSIuM/gviz/tq?tqx=out:csv&gid=0",
+      "https://docs.google.com/spreadsheets/d/1B5o0uBdFrR-pGT9dxStLorAgWx3XUYyN6I-yiBZlMcc/gviz/tq?tqx=out:csv&gid=0",
+    ];
 
-            instructor_list = split_instructors(instructors)
-            if instructor_list:
-                st.markdown("Instructor TLC Summary")
-                tlc_rows = []
-                for inst in instructor_list:
-                    tlc_summary = get_instructor_tlc_summary(df_tlc, inst)
-                    if tlc_summary is None:
-                        tlc_rows.append({
-                            "Instructor": inst,
-                            "TLC Progress": "No TLC data found"
-                        })
-                    else:
-                        tlc_rows.append({
-                            "Instructor": inst,
-                            "TLC Progress": f"{tlc_summary['completed']} / {tlc_summary['total']} ({tlc_summary['pct']:.1f}%)"
-                        })
-                st.table(pd.DataFrame(tlc_rows))
+    const BLOCK_COLUMNS = [
+      "Detailed Outline",
+      ...Array.from({ length: 15 }, (_, i) => `Block ${i + 1}`)
+    ];
 
+    const state = {
+      rawCourses: [],
+      rawTlc: [],
+      filteredCourses: [],
+      selectedChartView: 'school',
+      charts: {},
+      filters: {
+        semester: 'All',
+        school: 'All',
+        department: 'All',
+        course: 'All',
+        instructor: 'All',
+        search: ''
+      }
+    };
 
-# ==========================
-# Semester Page Renderer
-# ==========================
-def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, key_prefix: str):
-    target_semester = normalize_semester_label(semester_label)
-    df = df_all[df_all["__semester_key__"] == target_semester].copy()
+    const els = {
+      heroSummary: document.getElementById('heroSummary'),
+      metricCards: document.getElementById('metricCards'),
+      semesterFilter: document.getElementById('semesterFilter'),
+      schoolFilter: document.getElementById('schoolFilter'),
+      departmentFilter: document.getElementById('departmentFilter'),
+      courseFilter: document.getElementById('courseFilter'),
+      instructorFilter: document.getElementById('instructorFilter'),
+      searchInput: document.getElementById('searchInput'),
+      activeFilterChips: document.getElementById('activeFilterChips'),
+      recordsTableBody: document.getElementById('recordsTableBody'),
+      tableCount: document.getElementById('tableCount'),
+      tlcPanel: document.getElementById('tlcPanel'),
+      clearFiltersBtn: document.getElementById('clearFiltersBtn'),
+      exportBtn: document.getElementById('exportBtn')
+    };
 
-    if df.empty:
-        st.warning(f"No data found for {semester_label}.")
-        st.write("Available semester values found in sheet:")
-        st.write(sorted(df_all["Semester"].astype(str).dropna().unique()))
-        return
+    function normalizeWhitespace(value) {
+      return String(value ?? '')
+        .replace(/\u00A0/g, ' ')
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
 
-    if view == "Overview":
-        st.markdown(f"<h3>{semester_label}</h3>", unsafe_allow_html=True)
-        st.subheader("🎯 Course Progress by School")
+    function cleanName(value) {
+      return normalizeWhitespace(value)
+        .replace(/[.,]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+    }
 
-        schools = df["School"].dropna().unique()
-        if len(schools) == 0:
-            st.info("No schools found.")
-        else:
-            cols = st.columns(len(schools))
-            for i, school in enumerate(schools):
-                with cols[i]:
-                    s_df = df[df["School"] == school]
-                    avg = s_df["Progress %"].mean()
-                    course_count = s_df.shape[0]
+    function titleCaseStage(stage) {
+      const s = normalizeWhitespace(stage);
+      if (!s) return 'Unknown';
+      return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
 
-                    st.markdown(
-                        f"""
-                        <div style='text-align:center; margin-bottom:-10px;'>
-                          <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
-                          <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                    render_donut_chart(avg, key=f"{key_prefix}-donut-{i}-{school}")
+    async function fetchCsv(url) {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+      const text = await response.text();
+      return Papa.parse(text, { header: true, skipEmptyLines: true }).data;
+    }
 
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        overall = df["Progress %"].mean()
-        st.subheader(f"Overall University Progress ({semester_label})")
-        st.progress(int(0 if pd.isna(overall) else overall))
-        st.write(f"Overall Completion: {0 if pd.isna(overall) else overall:.1f}%")
+    function splitPeople(text) {
+      return normalizeWhitespace(text)
+        .split(/[,/]|\sand\s|\s&\s/gi)
+        .map(v => normalizeWhitespace(v))
+        .filter(Boolean);
+    }
 
-    else:
-        st.subheader(f"{semester_label} – Schools")
+    function isCompleted(value) {
+      const v = normalizeWhitespace(value).toLowerCase();
+      return v !== '' && v !== 'false' && v !== '0' && v !== 'nan' && v !== 'null' && v !== 'undefined';
+    }
 
-        schools = df["School"].dropna().unique()
-        if len(schools) == 0:
-            st.info("No schools found.")
-            return
+    function parseCourses(rows) {
+      return rows.map((row, index) => {
+        const semester = normalizeWhitespace(row['Semester']);
+        const school = normalizeWhitespace(row['School']).replace(/^SBS$/i, 'SSBS');
+        const department = normalizeWhitespace(row['Department']);
+        const course = normalizeWhitespace(row['Course \ pathway'] || row['Course/pathway'] || row['Course']);
+        const stage = titleCaseStage(row['Development Stage']);
+        const pm = normalizeWhitespace(row['ID']);
+        const deptHead = normalizeWhitespace(row['Dept. Head']);
+        const smes = splitPeople(row['SMEs']);
 
-        college = st.sidebar.selectbox(
-            "Select a College",
-            schools,
-            key=f"{key_prefix}_college"
-        )
+        const completedItems = BLOCK_COLUMNS.filter(col => isCompleted(row[col]));
+        const progressPct = Math.round((completedItems.length / BLOCK_COLUMNS.length) * 100);
 
-        d1 = df[df["School"] == college].copy()
+        const contributors = new Set(smes.map(cleanName));
+        BLOCK_COLUMNS.forEach(col => splitPeople(row[col]).forEach(name => contributors.add(cleanName(name))));
 
-        departments = d1["Department"].dropna().unique()
-        departments = [d for d in departments if clean_text_value(d) != ""]
-        departments = sorted(departments)
+        return {
+          id: `${semester}__${school}__${department}__${course}__${index}`,
+          semester,
+          school,
+          department,
+          course,
+          stage,
+          pm,
+          deptHead,
+          smes,
+          completedItems,
+          progressPct,
+          contributors: Array.from(contributors).filter(Boolean),
+          searchBlob: [semester, school, department, course, stage, pm, deptHead, smes.join(' '), ...BLOCK_COLUMNS.map(col => row[col])]
+            .map(v => normalizeWhitespace(v).toLowerCase())
+            .join(' | ')
+        };
+      }).filter(r => r.semester && r.course);
+    }
 
-        if len(departments) == 0:
-            st.info("No departments found.")
-            return
+    function parseTlcSheet(rows, sheetIndex) {
+      if (!rows.length) return [];
+      const columns = Object.keys(rows[0]);
+      const instructorCol = columns.find(c => cleanName(c).includes('istructor name') || cleanName(c).includes('instructor name')) || columns[0];
+      const sessionCols = columns.filter(c => c !== instructorCol);
 
-        dept_options = ["— Select Department —"] + list(departments)
-        dept = st.sidebar.selectbox(
-            "Select Department",
-            dept_options,
-            key=f"{key_prefix}_dept"
-        )
+      return rows.map(row => {
+        const instructor = normalizeWhitespace(row[instructorCol]);
+        const completedSessions = sessionCols.filter(col => normalizeWhitespace(row[col]).toLowerCase() === 'true');
+        return {
+          instructor,
+          instructorKey: cleanName(instructor),
+          sheetIndex,
+          totalSessions: sessionCols.length,
+          completedSessions,
+          completionPct: sessionCols.length ? Math.round((completedSessions.length / sessionCols.length) * 100) : 0
+        };
+      }).filter(r => r.instructor);
+    }
 
-        if dept == "— Select Department —":
-            course_count = d1.shape[0]
+    function attachTlcToCourses(courses, tlcRecords) {
+      const instructorToCourseMeta = new Map();
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown(
-                f"""
-                <div style='background:#2b2b2b;border-radius:14px;padding:18px 20px;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
-                    <div style='font-size:22px;font-weight:700;margin-bottom:4px;'>{college}</div>
-                    <div style='font-size:14px;color:#cccccc;'>{course_count} Courses</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+      courses.forEach(course => {
+        const names = new Set();
+        course.smes.forEach(name => names.add(cleanName(name)));
+        course.contributors.forEach(name => names.add(cleanName(name)));
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.subheader("School Courses Overview")
+        names.forEach(name => {
+          if (!name) return;
+          if (!instructorToCourseMeta.has(name)) {
+            instructorToCourseMeta.set(name, { schools: new Set(), departments: new Set(), courses: new Set(), semesters: new Set() });
+          }
+          const meta = instructorToCourseMeta.get(name);
+          meta.schools.add(course.school);
+          meta.departments.add(course.department);
+          meta.courses.add(course.course);
+          meta.semesters.add(course.semester);
+        });
+      });
 
-            school_table = d1[["Department", "Course \\ pathway", "SMEs", "Progress %"]].copy()
-            school_table["Department"] = school_table["Department"].apply(clean_text_value)
-            school_table["Course \\ pathway"] = school_table["Course \\ pathway"].apply(clean_text_value)
-            school_table["SMEs"] = school_table["SMEs"].apply(clean_text_value)
-            school_table["Progress %"] = school_table["Progress %"].apply(
-                lambda x: f"{float(x):.1f}%" if not pd.isna(x) else ""
-            )
+      return tlcRecords.map(rec => {
+        const meta = instructorToCourseMeta.get(rec.instructorKey);
+        return {
+          ...rec,
+          schools: meta ? Array.from(meta.schools) : [],
+          departments: meta ? Array.from(meta.departments) : [],
+          linkedCourses: meta ? Array.from(meta.courses) : [],
+          semesters: meta ? Array.from(meta.semesters) : []
+        };
+      });
+    }
 
-            school_table = school_table.rename(columns={
-                "Department": "Department",
-                "Course \\ pathway": "Course",
-                "SMEs": "Instructors",
-                "Progress %": "Course Progress",
-            })
+    function uniqueSorted(values) {
+      return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    }
 
-            school_table = school_table.sort_values(["Department", "Course"]).reset_index(drop=True)
-            st.table(school_table)
-            return
+    function populateSelect(select, values, currentValue = 'All', placeholder = 'All') {
+      const options = ['All', ...values];
+      select.innerHTML = options.map(v => `<option value="${escapeHtml(v)}" ${v === currentValue ? 'selected' : ''}>${escapeHtml(v === 'All' ? placeholder : v)}</option>`).join('');
+    }
 
-        d2 = d1[d1["Department"] == dept].copy()
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
 
-        courses = d2["Course \\ pathway"].dropna().unique()
-        courses = [c for c in courses if clean_text_value(c) != ""]
-        courses = sorted(courses)
+    function getAvailableOptions(baseRows) {
+      const semester = uniqueSorted(baseRows.map(r => r.semester));
+      const school = uniqueSorted(baseRows.map(r => r.school));
+      const department = uniqueSorted(baseRows.map(r => r.department));
+      const course = uniqueSorted(baseRows.map(r => r.course));
 
-        if len(courses) == 0:
-            st.info("No courses found.")
-            return
+      const instructorNames = new Set();
+      baseRows.forEach(row => {
+        row.smes.forEach(name => instructorNames.add(name));
+        row.contributors.forEach(key => {
+          const pretty = state.rawTlc.find(t => t.instructorKey === key)?.instructor;
+          if (pretty) instructorNames.add(pretty);
+        });
+      });
+      state.rawTlc.forEach(t => instructorNames.add(t.instructor));
 
-        course_options = ["— Select Course —"] + list(courses)
-        course = st.sidebar.selectbox(
-            "Select Course",
-            course_options,
-            key=f"{key_prefix}_course"
-        )
+      return {
+        semester,
+        school,
+        department,
+        course,
+        instructor: uniqueSorted(Array.from(instructorNames))
+      };
+    }
 
-        if course == "— Select Course —":
-            st.info("Select a course from the sidebar to view course details.")
-            return
+    function instructorMatches(row, selectedInstructor) {
+      if (selectedInstructor === 'All') return true;
+      const key = cleanName(selectedInstructor);
+      return row.contributors.includes(key) || row.smes.some(name => cleanName(name) === key);
+    }
 
-        row = d2[d2["Course \\ pathway"] == course].iloc[0]
+    function getFilteredCourses() {
+      return state.rawCourses.filter(row => {
+        const { semester, school, department, course, instructor, search } = state.filters;
+        const passesSearch = !search || row.searchBlob.includes(search.toLowerCase());
 
-        dean_name = clean_text_value(row.get("Dept. Head", ""))
-        smes_name = clean_text_value(row.get("SMEs", ""))
-        id_name = clean_text_value(row.get("ID", ""))
-        stage_name = clean_text_value(row.get("Development Stage", ""))
+        return passesSearch &&
+          (semester === 'All' || row.semester === semester) &&
+          (school === 'All' || row.school === school) &&
+          (department === 'All' || row.department === department) &&
+          (course === 'All' || row.course === course) &&
+          instructorMatches(row, instructor);
+      });
+    }
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.subheader(f"{course} - ({stage_name} Stage)")
-        st.markdown("<hr>", unsafe_allow_html=True)
-        st.write(f"👨‍🏫 Dean: {dean_name if dean_name else '—'}")
-        st.write(f"📝 SMEs: {smes_name if smes_name else '—'}")
-        st.write(f"🎯 Instructional Designer: {id_name if id_name else '—'}")
+    function getFilteredTlc() {
+      return state.rawTlc.filter(row => {
+        const { semester, school, department, course, instructor, search } = state.filters;
+        const textBlob = [row.instructor, ...row.schools, ...row.departments, ...row.linkedCourses, ...row.semesters].join(' ').toLowerCase();
+        return (!search || textBlob.includes(search.toLowerCase())) &&
+          (instructor === 'All' || cleanName(row.instructor) === cleanName(instructor)) &&
+          (semester === 'All' || row.semesters.includes(semester)) &&
+          (school === 'All' || row.schools.includes(school)) &&
+          (department === 'All' || row.departments.includes(department)) &&
+          (course === 'All' || row.linkedCourses.includes(course));
+      });
+    }
 
-        tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
-        df_tasks = pd.DataFrame(
-            {"Task": tasks, "Completion": ["✅" if is_filled(row.get(t, "")) else "❌" for t in tasks]}
-        )
-        st.table(df_tasks)
+    function avg(values) {
+      if (!values.length) return 0;
+      return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+    }
 
-        st.subheader("Overall Course Progress")
-        pct = row["Progress %"]
-        st.progress(int(0 if pd.isna(pct) else pct))
-        st.write(f"{0 if pd.isna(pct) else pct:.1f}%")
+    function sumBy(rows, keyGetter, valueGetter) {
+      const map = new Map();
+      rows.forEach(row => {
+        const key = keyGetter(row);
+        const value = valueGetter(row);
+        map.set(key, (map.get(key) || 0) + value);
+      });
+      return Array.from(map.entries());
+    }
 
+    function countBy(rows, keyGetter) {
+      const map = new Map();
+      rows.forEach(row => {
+        const key = keyGetter(row);
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+      return Array.from(map.entries());
+    }
 
-# ==========================
-# Sidebar
-# ==========================
-st.sidebar.image("htu_logo.png", use_container_width=True)
-st.sidebar.markdown("<hr style='border:1px solid #d04546'>", unsafe_allow_html=True)
+    function renderHeroSummary(rows, tlcRows) {
+      const activeInstructors = uniqueSorted(rows.flatMap(r => r.smes)).length;
+      const html = [
+        { label: 'Visible courses', value: rows.length },
+        { label: 'Average progress', value: `${avg(rows.map(r => r.progressPct))}%` },
+        { label: 'Visible instructors', value: activeInstructors },
+        { label: 'Avg TLC completion', value: `${avg(tlcRows.map(r => r.completionPct))}%` }
+      ].map(item => `
+        <div class="glass-soft rounded-2xl p-4">
+          <div class="mini-label">${escapeHtml(item.label)}</div>
+          <div class="text-2xl font-semibold mt-2">${escapeHtml(item.value)}</div>
+        </div>
+      `).join('');
+      els.heroSummary.innerHTML = html;
+    }
 
-global_search = st.sidebar.text_input(
-    "Search",
-    placeholder="Course, instructor, school, department..."
-)
+    function renderMetricCards(rows, tlcRows) {
+      const totalCompletedSlots = rows.reduce((sum, r) => sum + r.completedItems.length, 0);
+      const totalPossibleSlots = rows.length * BLOCK_COLUMNS.length;
+      const coverage = totalPossibleSlots ? Math.round((totalCompletedSlots / totalPossibleSlots) * 100) : 0;
 
-page = st.sidebar.radio(
-    "Go to",
-    [
-        "🏠 Home",
-        "🏫 Instructors",
-        "🌱 Spring 2024/2025",
-        "🍂 Fall 2025/2026",
-        "🌸 Spring 2025/2026",
-    ]
-)
+      const reviewCount = rows.filter(r => r.stage.toLowerCase().includes('review')).length;
+      const selectedInstructor = state.filters.instructor !== 'All' ? state.filters.instructor : null;
+      const selectedCourse = state.filters.course !== 'All' ? state.filters.course : null;
 
-if page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026", "🌸 Spring 2025/2026"]:
-    view = st.sidebar.radio("View", ["Overview", "Schools"])
+      const linkedCoursesForInstructor = selectedInstructor
+        ? rows.filter(r => instructorMatches(r, selectedInstructor)).length
+        : null;
 
-# ==========================
-# Header
-# ==========================
-st.markdown("<h1 style='text-align:center;color:#d04546;'>HTU</h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align:center;'>HTU Digital Twin by 2028 Progress</h2>", unsafe_allow_html=True)
-st.markdown("<br>", unsafe_allow_html=True)
+      const cards = [
+        {
+          title: 'Overall completion coverage',
+          value: `${coverage}%`,
+          helper: `${totalCompletedSlots} completed items out of ${totalPossibleSlots}`
+        },
+        {
+          title: 'Courses under review',
+          value: reviewCount,
+          helper: reviewCount ? 'Needs follow-up and final checks' : 'No visible courses in review'
+        },
+        {
+          title: selectedCourse ? 'Selected course progress' : 'Median-like course snapshot',
+          value: selectedCourse && rows[0] ? `${rows[0].progressPct}%` : `${avg(rows.map(r => r.progressPct))}%`,
+          helper: selectedCourse && rows[0] ? rows[0].course : 'Average visible course progress'
+        },
+        {
+          title: selectedInstructor ? 'Instructor-linked courses' : 'TLC visible records',
+          value: selectedInstructor ? linkedCoursesForInstructor : tlcRows.length,
+          helper: selectedInstructor
+            ? `Courses associated with ${selectedInstructor}`
+            : 'Instructor training records in current filter'
+        }
+      ];
 
-# ==========================
-# Load all data once
-# ==========================
-df_all = load_data()
-df_tlc = load_tlc_sessions()
+      els.metricCards.innerHTML = cards.map(card => `
+        <div class="glass rounded-3xl p-5 metric-card">
+          <div class="mini-label">${escapeHtml(card.title)}</div>
+          <div class="text-3xl font-semibold mt-3">${escapeHtml(card.value)}</div>
+          <div class="text-sm text-slate-400 mt-2 leading-6">${escapeHtml(card.helper)}</div>
+        </div>
+      `).join('');
+    }
 
-# ==========================
-# GLOBAL SEARCH PRIORITY
-# ==========================
-if clean_text_value(global_search):
-    render_search_results(df_all, df_tlc, global_search)
+    function statusClass(stage) {
+      const s = stage.toLowerCase();
+      if (s.includes('development')) return 'status-development';
+      if (s.includes('review')) return 'status-review';
+      if (s.includes('planning')) return 'status-planning';
+      return 'status-other';
+    }
 
-# ==========================
-# HOME PAGE
-# ==========================
-elif page == "🏠 Home":
-    summary = [
-        {"school": "SCI", "total": 37, "ready": 8},
-        {"school": "SET", "total": 69, "ready": 9},
-        {"school": "SBEE", "total": 30, "ready": 2},
-        {"school": "SSBS", "total": 32, "ready": 12},
-    ]
-    for s in summary:
-        s["percent"] = 0 if s["total"] == 0 else round(s["ready"] / s["total"] * 100, 1)
+    function renderActiveFilterChips() {
+      const chips = Object.entries(state.filters)
+        .filter(([key, value]) => key !== 'search' ? value !== 'All' : !!value)
+        .map(([key, value]) => {
+          const label = key.charAt(0).toUpperCase() + key.slice(1);
+          return `<span class="pill rounded-full px-3 py-1.5 text-sm">${escapeHtml(label)}: ${escapeHtml(value)}</span>`;
+        });
 
-    total_courses = sum(s["total"] for s in summary)
-    total_ready = sum(s["ready"] for s in summary)
-    total_pct = 0 if total_courses == 0 else round(total_ready / total_courses * 100, 1)
+      els.activeFilterChips.innerHTML = chips.length ? chips.join('') : '<span class="text-sm text-slate-500">No active filters</span>';
+    }
 
-    st.markdown("<h3 style='text-align:center;'>University Snapshot</h3>", unsafe_allow_html=True)
-    total_col = st.columns([1, 2, 1])
-    with total_col[1]:
-        st.markdown(
-            f"""
-            <div style='background:#2b2b2b;border-radius:16px;padding:20px;text-align:center;color:white;box-shadow:0 4px 10px rgba(0,0,0,0.25);'>
-              <div style='font-size:22px;font-weight:700;margin-bottom:8px;'>Overall Readiness</div>
-              <div style='font-size:16px;color:#cccccc;margin-bottom:8px;'>{total_ready} of {total_courses} courses ready</div>
+    function buildProgressChartData(rows, view) {
+      if (!rows.length) return { labels: [], values: [] };
+
+      let grouped;
+      if (view === 'department') {
+        grouped = sumBy(rows, r => r.department, r => r.progressPct).map(([name, total]) => {
+          const count = rows.filter(r => r.department === name).length;
+          return [name, Math.round(total / count)];
+        });
+      } else if (view === 'course') {
+        grouped = rows
+          .map(r => [r.course, r.progressPct])
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10);
+      } else {
+        grouped = sumBy(rows, r => r.school, r => r.progressPct).map(([name, total]) => {
+          const count = rows.filter(r => r.school === name).length;
+          return [name, Math.round(total / count)];
+        });
+      }
+
+      return {
+        labels: grouped.map(([label]) => label),
+        values: grouped.map(([, value]) => value)
+      };
+    }
+
+    function renderChart(chartKey, canvasId, type, data, options = {}) {
+      const ctx = document.getElementById(canvasId);
+      if (state.charts[chartKey]) state.charts[chartKey].destroy();
+      state.charts[chartKey] = new Chart(ctx, {
+        type,
+        data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#dbe7ff' } },
+            tooltip: {
+              backgroundColor: 'rgba(3,7,18,0.95)',
+              titleColor: '#ffffff',
+              bodyColor: '#dbe7ff',
+              borderColor: 'rgba(255,255,255,0.08)',
+              borderWidth: 1
+            }
+          },
+          scales: type === 'doughnut' ? {} : {
+            x: { ticks: { color: '#c5d3f0' }, grid: { color: 'rgba(255,255,255,0.06)' } },
+            y: { beginAtZero: true, max: 100, ticks: { color: '#c5d3f0' }, grid: { color: 'rgba(255,255,255,0.06)' } }
+          },
+          ...options
+        }
+      });
+    }
+
+    function renderProgressChart(rows) {
+      const { labels, values } = buildProgressChartData(rows, state.selectedChartView);
+      renderChart('progressChart', 'progressChart', 'bar', {
+        labels,
+        datasets: [{
+          label: 'Progress %',
+          data: values,
+          backgroundColor: ['rgba(125,211,252,0.75)', 'rgba(167,139,250,0.75)', 'rgba(52,211,153,0.75)', 'rgba(251,191,36,0.75)', 'rgba(244,114,182,0.75)', 'rgba(96,165,250,0.75)', 'rgba(74,222,128,0.75)', 'rgba(192,132,252,0.75)', 'rgba(250,204,21,0.75)', 'rgba(45,212,191,0.75)'],
+          borderRadius: 10,
+          borderSkipped: false
+        }]
+      }, {
+        plugins: {
+          legend: { display: false }
+        }
+      });
+    }
+
+    function renderStageChart(rows) {
+      const grouped = countBy(rows, r => r.stage);
+      renderChart('stageChart', 'stageChart', 'doughnut', {
+        labels: grouped.map(([label]) => label),
+        datasets: [{
+          data: grouped.map(([, value]) => value),
+          backgroundColor: [
+            'rgba(52,211,153,0.8)',
+            'rgba(251,191,36,0.8)',
+            'rgba(125,211,252,0.8)',
+            'rgba(167,139,250,0.8)',
+            'rgba(244,114,182,0.8)'
+          ],
+          borderColor: 'rgba(7,17,31,1)',
+          borderWidth: 2
+        }]
+      });
+    }
+
+    function computeInstructorData(rows, tlcRows) {
+      const selectedInstructor = state.filters.instructor;
+
+      if (selectedInstructor !== 'All') {
+        const relevantCourses = rows.filter(r => instructorMatches(r, selectedInstructor));
+        const tlc = tlcRows.find(t => cleanName(t.instructor) === cleanName(selectedInstructor));
+
+        return {
+          labels: relevantCourses.map(r => r.course).slice(0, 10),
+          values: relevantCourses.map(r => r.progressPct).slice(0, 10),
+          title: tlc ? `${selectedInstructor} • TLC ${tlc.completionPct}%` : `${selectedInstructor} • course links`
+        };
+      }
+
+      const map = new Map();
+      rows.forEach(row => {
+        row.smes.forEach(name => {
+          const key = name;
+          if (!map.has(key)) map.set(key, { courses: 0, progressTotal: 0 });
+          map.get(key).courses += 1;
+          map.get(key).progressTotal += row.progressPct;
+        });
+      });
+
+      const top = Array.from(map.entries())
+        .map(([name, v]) => [name, Math.round(v.progressTotal / v.courses), v.courses])
+        .sort((a, b) => b[2] - a[2])
+        .slice(0, 10);
+
+      return {
+        labels: top.map(([name]) => name),
+        values: top.map(([, progress]) => progress),
+        title: 'Top visible instructors by linked course contribution'
+      };
+    }
+
+    function renderInstructorChart(rows, tlcRows) {
+      const { labels, values, title } = computeInstructorData(rows, tlcRows);
+      renderChart('instructorChart', 'instructorChart', 'bar', {
+        labels,
+        datasets: [{
+          label: title,
+          data: values,
+          backgroundColor: 'rgba(167,139,250,0.78)',
+          borderRadius: 10,
+          borderSkipped: false
+        }]
+      }, {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+      });
+    }
+
+    function renderTlcPanel(tlcRows, courses) {
+      if (!tlcRows.length) {
+        els.tlcPanel.innerHTML = '<div class="rounded-2xl border border-white/10 p-4 text-slate-400">No TLC records match the current filters.</div>';
+        return;
+      }
+
+      const selectedInstructor = state.filters.instructor;
+
+      if (selectedInstructor !== 'All') {
+        const rec = tlcRows.find(t => cleanName(t.instructor) === cleanName(selectedInstructor));
+        if (!rec) {
+          els.tlcPanel.innerHTML = `<div class="rounded-2xl border border-white/10 p-4 text-slate-400">${escapeHtml(selectedInstructor)} has no linked TLC record in the current view.</div>`;
+          return;
+        }
+
+        els.tlcPanel.innerHTML = `
+          <div class="glass-soft rounded-2xl p-5 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+              <div>
+                <div class="text-xl font-semibold">${escapeHtml(rec.instructor)}</div>
+                <div class="text-sm text-slate-400 mt-1">${escapeHtml(rec.linkedCourses.join(' • ') || 'No linked courses found')}</div>
+              </div>
+              <div class="text-right">
+                <div class="mini-label">TLC completion</div>
+                <div class="text-3xl font-semibold mt-1">${rec.completionPct}%</div>
+              </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.progress(int(total_pct))
-        st.write(f"Completion: {total_pct:.1f}%")
+            <div>
+              <div class="progress-track"><div class="progress-bar" style="width:${rec.completionPct}%"></div></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div class="rounded-2xl border border-white/10 p-4">
+                <div class="mini-label mb-2">Completed sessions</div>
+                <div class="text-slate-200 leading-7">${rec.completedSessions.length ? rec.completedSessions.map(s => escapeHtml(s)).join('<br>') : 'No completed sessions marked'}</div>
+              </div>
+              <div class="rounded-2xl border border-white/10 p-4">
+                <div class="mini-label mb-2">Linked semesters</div>
+                <div class="text-slate-200 leading-7">${rec.semesters.length ? rec.semesters.map(s => escapeHtml(s)).join('<br>') : 'Not matched to a semester'}</div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
 
-    st.markdown("<br>", unsafe_allow_html=True)
+      const top = [...tlcRows].sort((a, b) => b.completionPct - a.completionPct).slice(0, 8);
+      els.tlcPanel.innerHTML = top.map(rec => `
+        <div class="glass-soft rounded-2xl p-4">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <div class="font-medium text-white">${escapeHtml(rec.instructor)}</div>
+              <div class="text-sm text-slate-400 mt-1">${escapeHtml((rec.linkedCourses || []).slice(0, 2).join(' • ') || 'No linked course found')}</div>
+            </div>
+            <div class="text-sm text-slate-200 min-w-[90px] md:text-right">${rec.completionPct}%</div>
+          </div>
+          <div class="progress-track mt-3"><div class="progress-bar" style="width:${rec.completionPct}%"></div></div>
+        </div>
+      `).join('');
+    }
 
-    cols = st.columns(4)
-    for i, s in enumerate(summary):
-        with cols[i]:
-            st.markdown(
-                f"""
-                <div style="
-                    background:#2b2b2b;
-                    border-radius:16px;
-                    padding:16px;
-                    color:white;
-                    text-align:center;
-                    box-shadow:0 4px 10px rgba(0,0,0,0.25);
-                    display:flex;
-                    flex-direction:column;
-                    justify-content:center;
-                    align-items:center;
-                    height:180px;
-                ">
-                    <div style="font-size:24px; font-weight:800; margin-bottom:8px; letter-spacing:0.3px;">
-                        {s['school']}
-                    </div>
-                    <div style="font-size:16px; color:#cccccc; margin:0;">
-                        {s['ready']} of {s['total']} ready
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            st.progress(int(s["percent"]))
-            st.caption(f"Progress: {s['percent']:.1f}%")
+    function renderTable(rows) {
+      els.tableCount.textContent = `${rows.length} record${rows.length === 1 ? '' : 's'} shown`;
 
-    st.markdown("<br>", unsafe_allow_html=True)
+      if (!rows.length) {
+        els.recordsTableBody.innerHTML = `
+          <tr>
+            <td colspan="9" class="px-4 py-10 text-center text-slate-400">No records match the current filters.</td>
+          </tr>
+        `;
+        return;
+      }
 
-# ==========================
-# INSTRUCTORS TAB
-# ==========================
-elif page == "🏫 Instructors":
-    st.subheader("Instructors")
+      els.recordsTableBody.innerHTML = rows.map(row => `
+        <tr class="border-t border-white/8 hover:bg-white/5 transition">
+          <td class="px-4 py-4 align-top">${escapeHtml(row.semester)}</td>
+          <td class="px-4 py-4 align-top">${escapeHtml(row.school)}</td>
+          <td class="px-4 py-4 align-top">${escapeHtml(row.department)}</td>
+          <td class="px-4 py-4 align-top">
+            <div class="font-medium text-white">${escapeHtml(row.course)}</div>
+            <div class="text-xs text-slate-400 mt-1">Dept head: ${escapeHtml(row.deptHead || '—')}</div>
+          </td>
+          <td class="px-4 py-4 align-top"><span class="status-chip ${statusClass(row.stage)}">${escapeHtml(row.stage)}</span></td>
+          <td class="px-4 py-4 align-top">${escapeHtml(row.pm || '—')}</td>
+          <td class="px-4 py-4 align-top max-w-[280px]">${escapeHtml(row.smes.join(', ') || '—')}</td>
+          <td class="px-4 py-4 align-top min-w-[180px]">
+            <div class="flex items-center justify-between text-xs text-slate-300 mb-2">
+              <span>${row.progressPct}%</span>
+              <span>${row.completedItems.length}/${BLOCK_COLUMNS.length}</span>
+            </div>
+            <div class="progress-track"><div class="progress-bar" style="width:${row.progressPct}%"></div></div>
+          </td>
+          <td class="px-4 py-4 align-top text-slate-300 max-w-[320px]">${escapeHtml(row.completedItems.join(', ') || '—')}</td>
+        </tr>
+      `).join('');
+    }
 
-    school_options = sorted(df_all["School"].dropna().unique())
-    if len(school_options) == 0:
-        st.info("No schools found.")
-    else:
-        school = st.sidebar.selectbox("Select School", school_options)
-        df_s = df_all[df_all["School"] == school]
+    function refreshFilterOptions() {
+      const baseRows = state.rawCourses.filter(row => {
+        const { semester, school, department, course, instructor, search } = state.filters;
+        return (!search || row.searchBlob.includes(search.toLowerCase())) &&
+          (semester === 'All' || row.semester === semester) &&
+          (school === 'All' || row.school === school) &&
+          (department === 'All' || row.department === department) &&
+          (course === 'All' || row.course === course) &&
+          instructorMatches(row, instructor);
+      });
 
-        department_options = sorted(df_s["Department"].dropna().unique())
-        department_options = [d for d in department_options if clean_text_value(d) != ""]
-        if len(department_options) == 0:
-            st.info("No departments found for the selected school.")
-        else:
-            department = st.sidebar.selectbox("Select Department", department_options)
-            df_d = df_s[df_s["Department"] == department].copy()
+      const options = getAvailableOptions(baseRows.length ? baseRows : state.rawCourses);
+      populateSelect(els.semesterFilter, options.semester, state.filters.semester, 'All semesters');
+      populateSelect(els.schoolFilter, options.school, state.filters.school, 'All schools');
+      populateSelect(els.departmentFilter, options.department, state.filters.department, 'All departments');
+      populateSelect(els.courseFilter, options.course, state.filters.course, 'All courses');
+      populateSelect(els.instructorFilter, options.instructor, state.filters.instructor, 'All instructors');
+    }
 
-            all_instructors = []
-            for val in df_d["SMEs"].fillna(""):
-                all_instructors.extend(split_instructors(val))
-            all_instructors = sorted(set([i for i in all_instructors if i]))
+    function updateDashboard() {
+      const filteredCourses = getFilteredCourses();
+      const filteredTlc = getFilteredTlc();
+      state.filteredCourses = filteredCourses;
 
-            if len(all_instructors) == 0:
-                st.info("No instructors found in the SMEs column for the selected School/Department.")
-            else:
-                instructor = st.sidebar.selectbox("Select Instructor", all_instructors)
+      renderHeroSummary(filteredCourses, filteredTlc);
+      renderMetricCards(filteredCourses, filteredTlc);
+      renderActiveFilterChips();
+      renderProgressChart(filteredCourses);
+      renderStageChart(filteredCourses);
+      renderInstructorChart(filteredCourses, filteredTlc);
+      renderTlcPanel(filteredTlc, filteredCourses);
+      renderTable(filteredCourses);
+    }
 
-                def instructor_in_row(smes_val: str) -> bool:
-                    names = split_instructors(smes_val)
-                    return instructor in names
+    function bindEvents() {
+      els.semesterFilter.addEventListener('change', e => { state.filters.semester = e.target.value; refreshFilterOptions(); updateDashboard(); });
+      els.schoolFilter.addEventListener('change', e => { state.filters.school = e.target.value; refreshFilterOptions(); updateDashboard(); });
+      els.departmentFilter.addEventListener('change', e => { state.filters.department = e.target.value; refreshFilterOptions(); updateDashboard(); });
+      els.courseFilter.addEventListener('change', e => { state.filters.course = e.target.value; refreshFilterOptions(); updateDashboard(); });
+      els.instructorFilter.addEventListener('change', e => { state.filters.instructor = e.target.value; refreshFilterOptions(); updateDashboard(); });
+      els.searchInput.addEventListener('input', e => { state.filters.search = e.target.value.trim(); refreshFilterOptions(); updateDashboard(); });
 
-                df_i = df_d[df_d["SMEs"].apply(instructor_in_row)].copy()
+      els.clearFiltersBtn.addEventListener('click', () => {
+        state.filters = { semester: 'All', school: 'All', department: 'All', course: 'All', instructor: 'All', search: '' };
+        els.searchInput.value = '';
+        refreshFilterOptions();
+        updateDashboard();
+      });
 
-                st.markdown("<hr>", unsafe_allow_html=True)
-                st.write(f"School: {school}")
-                st.write(f"Department: {department}")
-                st.write(f"Instructor: {instructor}")
+      document.querySelectorAll('[data-chart-view]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-chart-view]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.selectedChartView = btn.dataset.chartView;
+          renderProgressChart(state.filteredCourses);
+        });
+      });
 
-                st.subheader("Courses & Semesters")
-                if df_i.shape[0] == 0:
-                    st.info("No courses found for this instructor in the selected School/Department.")
-                else:
-                    rows = []
-                    for _, r in df_i.iterrows():
-                        do_worked = instructor_mentioned_in_cell(r.get("Detailed Outline", ""), instructor)
+      els.exportBtn.addEventListener('click', () => {
+        if (!state.filteredCourses.length) return;
+        const rows = state.filteredCourses.map(row => ({
+          Semester: row.semester,
+          School: row.school,
+          Department: row.department,
+          Course: row.course,
+          Stage: row.stage,
+          PM: row.pm,
+          SMEs: row.smes.join(', '),
+          ProgressPct: row.progressPct,
+          CompletedItems: row.completedItems.join(', ')
+        }));
+        const csv = Papa.unparse(rows);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'htu_dashboard_filtered_data.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
 
-                        worked_blocks = []
-                        for i in range(1, 16):
-                            b = f"Block {i}"
-                            if instructor_mentioned_in_cell(r.get(b, ""), instructor):
-                                worked_blocks.append(b)
+    async function init() {
+      try {
+        const [mainRows, ...tlcSheetsRows] = await Promise.all([
+          fetchCsv(DATA_URL),
+          ...TLC_SHEETS.map(fetchCsv)
+        ]);
 
-                        rows.append({
-                            "Semester": clean_text_value(r.get("Semester", "")),
-                            "Course": clean_text_value(r.get("Course \\ pathway", "")),
-                            "Total Progress": "" if pd.isna(r.get("Progress %", np.nan)) else f"{float(r.get('Progress %')):.1f}%",
-                            "Detailed Outline": "✅" if do_worked else "❌",
-                            "Blocks": ", ".join(worked_blocks) if worked_blocks else "—",
-                        })
+        const parsedCourses = parseCourses(mainRows);
+        const parsedTlc = tlcSheetsRows.flatMap((rows, idx) => parseTlcSheet(rows, idx));
+        const matchedTlc = attachTlcToCourses(parsedCourses, parsedTlc);
 
-                    report = pd.DataFrame(rows)
-                    report = (
-                        report.dropna(subset=["Semester", "Course"])
-                        .drop_duplicates()
-                        .sort_values(["Semester", "Course"])
-                        .reset_index(drop=True)
-                    )
-                    st.table(report)
+        state.rawCourses = parsedCourses;
+        state.rawTlc = matchedTlc;
 
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.subheader("Notes")
+        refreshFilterOptions();
+        updateDashboard();
+        bindEvents();
+      } catch (error) {
+        console.error(error);
+        document.body.innerHTML = `
+          <div class="min-h-screen flex items-center justify-center p-8">
+            <div class="glass rounded-3xl p-8 max-w-2xl w-full text-center">
+              <h1 class="text-2xl font-semibold mb-3">Failed to load dashboard data</h1>
+              <p class="text-slate-300 leading-7">The HTML loaded, but the sheet data could not be fetched. Please verify that the Google Sheets CSV links are public and accessible.</p>
+              <p class="text-sm text-rose-300 mt-4">${escapeHtml(error.message)}</p>
+            </div>
+          </div>
+        `;
+      }
+    }
 
-                    notes_items = []
-                    for _, r in df_i.iterrows():
-                        course_name = clean_text_value(r.get("Course \\ pathway", ""))
-                        semester = clean_text_value(r.get("Semester", ""))
-
-                        worked_any = False
-                        if instructor_mentioned_in_cell(r.get("Detailed Outline", ""), instructor):
-                            worked_any = True
-                        else:
-                            for i in range(1, 16):
-                                if instructor_mentioned_in_cell(r.get(f"Block {i}", ""), instructor):
-                                    worked_any = True
-                                    break
-
-                        note_txt = clean_text_value(r.get("Notes", ""))
-                        if worked_any and note_txt:
-                            notes_items.append({
-                                "Semester": semester,
-                                "Course": course_name,
-                                "Notes": note_txt,
-                            })
-
-                    if len(notes_items) == 0:
-                        st.info("No notes found for the selected instructor.")
-                    else:
-                        notes_df = (
-                            pd.DataFrame(notes_items)
-                            .drop_duplicates()
-                            .sort_values(["Semester", "Course"])
-                            .reset_index(drop=True)
-                        )
-                        for _, item in notes_df.iterrows():
-                            st.markdown(f"• **{item['Semester']} — {item['Course']}**: {item['Notes']}")
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.subheader("TLC Sessions Progress")
-
-                    instructor_key = normalize_person_name(instructor)
-                    tlc_match = df_tlc[df_tlc["__name_key__"] == instructor_key].copy()
-
-                    if tlc_match.shape[0] == 0 and df_tlc.shape[0] > 0:
-                        tlc_match = df_tlc[df_tlc["__name_key__"].astype(str).str.contains(re.escape(instructor_key), na=False)].copy()
-                        if tlc_match.shape[0] == 0:
-                            tlc_match = df_tlc[df_tlc["__name_key__"].apply(lambda x: instructor_key in str(x) or str(x) in instructor_key)].copy()
-
-                    if tlc_match.shape[0] == 0:
-                        st.info("No TLC session data found for this instructor (in the 4 TLC sheets).")
-                    else:
-                        session_cols = [
-                            c for c in tlc_match.columns
-                            if c not in {"Instructor Name", "__name_key__"}
-                            and str(c).strip() != ""
-                            and not str(c).strip().lower().startswith("unnamed")
-                        ]
-
-                        merged = {}
-                        for c in session_cols:
-                            merged[c] = bool(tlc_match[c].fillna(False).astype(bool).any())
-
-                        session_rows = []
-                        completed = 0
-                        total = len(session_cols)
-
-                        for c in session_cols:
-                            done = bool(merged.get(c, False))
-                            if done:
-                                completed += 1
-                            session_rows.append({"Session": c, "Completion": "✅" if done else "❌"})
-
-                        tlc_table = pd.DataFrame(session_rows)
-                        st.table(tlc_table)
-
-                        pct = 0 if total == 0 else (completed / total) * 100
-                        st.progress(int(pct))
-                        st.write(f"TLC Completion: {completed} / {total} ({pct:.1f}%)")
-
-# ==========================
-# SEMESTER PAGES
-# ==========================
-elif page == "🌱 Spring 2024/2025":
-    render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
-
-elif page == "🍂 Fall 2025/2026":
-    render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
-
-elif page == "🌸 Spring 2025/2026":
-    render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
-
-# ==========================
-# Footer
-# ==========================
-st.markdown("<br><hr>", unsafe_allow_html=True)
-st.markdown(
-    "<div style='text-align:center;color:#666;padding:10px;'>Made By: The D. Learn Center at HTU</div>",
-    unsafe_allow_html=True,
-)
+    init();
+  </script>
+</body>
+</html>
