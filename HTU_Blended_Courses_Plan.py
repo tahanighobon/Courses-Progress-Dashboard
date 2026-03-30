@@ -1,3 +1,9 @@
+import streamlit as st
+import streamlit.components.v1 as components
+
+st.set_page_config(page_title="HTU Course Development Dashboard", layout="wide")
+
+html_code = r"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,6 +28,10 @@
       --danger: #fb7185;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       background:
         radial-gradient(circle at top left, rgba(125,211,252,0.16), transparent 28%),
@@ -29,6 +39,9 @@
         linear-gradient(180deg, #030712 0%, #07111f 100%);
       color: var(--text);
       min-height: 100vh;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 24px;
     }
 
     .glass {
@@ -36,23 +49,31 @@
       backdrop-filter: blur(14px);
       border: 1px solid var(--line);
       box-shadow: 0 20px 50px rgba(0,0,0,0.28);
+      border-radius: 24px;
     }
 
     .glass-soft {
       background: var(--panel-2);
       border: 1px solid var(--line);
       box-shadow: 0 14px 40px rgba(0,0,0,0.22);
+      border-radius: 18px;
     }
 
     .pill {
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.04);
+      border-radius: 999px;
+      padding: 8px 14px;
+      display: inline-block;
     }
 
     .filter-select, .search-input {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.10);
       color: var(--text);
+      width: 100%;
+      border-radius: 16px;
+      padding: 12px 14px;
     }
 
     .filter-select:focus, .search-input:focus {
@@ -61,24 +82,20 @@
       box-shadow: 0 0 0 3px rgba(125,211,252,0.15);
     }
 
+    .filter-select option {
+      background: #0b172a;
+      color: white;
+    }
+
     .metric-card {
       position: relative;
       overflow: hidden;
-    }
-
-    .metric-card::after {
-      content: "";
-      position: absolute;
-      inset: auto -20% -55% auto;
-      width: 140px;
-      height: 140px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(125,211,252,0.18), transparent 65%);
+      padding: 20px;
     }
 
     .mini-label {
       color: var(--muted);
-      font-size: 0.78rem;
+      font-size: 12px;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
@@ -96,21 +113,38 @@
       background: linear-gradient(90deg, var(--accent), var(--accent-2));
     }
 
-    .table-wrap::-webkit-scrollbar { height: 10px; width: 10px; }
-    .table-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
-
     .status-chip {
-      font-size: 0.72rem;
-      padding: 0.2rem 0.55rem;
+      font-size: 12px;
+      padding: 4px 10px;
       border-radius: 999px;
       border: 1px solid transparent;
       white-space: nowrap;
+      display: inline-block;
     }
 
-    .status-development { background: rgba(52,211,153,0.12); color: #86efac; border-color: rgba(52,211,153,0.25); }
-    .status-review { background: rgba(251,191,36,0.12); color: #fde68a; border-color: rgba(251,191,36,0.24); }
-    .status-planning { background: rgba(125,211,252,0.12); color: #bae6fd; border-color: rgba(125,211,252,0.24); }
-    .status-other { background: rgba(167,139,250,0.12); color: #ddd6fe; border-color: rgba(167,139,250,0.24); }
+    .status-development {
+      background: rgba(52,211,153,0.12);
+      color: #86efac;
+      border-color: rgba(52,211,153,0.25);
+    }
+
+    .status-review {
+      background: rgba(251,191,36,0.12);
+      color: #fde68a;
+      border-color: rgba(251,191,36,0.24);
+    }
+
+    .status-planning {
+      background: rgba(125,211,252,0.12);
+      color: #bae6fd;
+      border-color: rgba(125,211,252,0.24);
+    }
+
+    .status-other {
+      background: rgba(167,139,250,0.12);
+      color: #ddd6fe;
+      border-color: rgba(167,139,250,0.24);
+    }
 
     .tab-btn.active {
       background: linear-gradient(90deg, rgba(125,211,252,0.18), rgba(167,139,250,0.16));
@@ -118,161 +152,262 @@
       border-color: rgba(125,211,252,0.25);
     }
 
-    .loading-shimmer {
-      background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04));
-      background-size: 200% 100%;
-      animation: shimmer 1.6s infinite linear;
-      border-radius: 1rem;
+    table {
+      width: 100%;
+      border-collapse: collapse;
     }
 
-    @keyframes shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    thead {
+      background: rgba(255,255,255,0.05);
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 7fr 5fr;
+      gap: 16px;
+    }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 5fr 7fr;
+      gap: 16px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: white;
+      transition: 0.2s ease;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .btn-primary {
+      background: rgba(125,211,252,0.15);
+      border-color: rgba(125,211,252,0.2);
+    }
+
+    .btn-primary:hover {
+      background: rgba(125,211,252,0.22);
+    }
+
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .muted {
+      color: #94a3b8;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      min-width: 420px;
+    }
+
+    @media (max-width: 1100px) {
+      .filters-grid,
+      .cards-grid,
+      .charts-grid,
+      .bottom-grid,
+      .hero-grid {
+        grid-template-columns: 1fr !important;
+      }
     }
   </style>
 </head>
-<body class="px-4 py-6 md:px-8 lg:px-10">
-  <div class="max-w-7xl mx-auto space-y-6">
-    <header class="glass rounded-3xl p-6 md:p-8">
-      <div class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-        <div class="space-y-4 max-w-3xl">
-          <div class="flex flex-wrap items-center gap-2 text-sm text-sky-200">
-            <span class="pill rounded-full px-3 py-1">Interactive HTML Dashboard</span>
-            <span class="pill rounded-full px-3 py-1">Smart Filtering</span>
-            <span class="pill rounded-full px-3 py-1">Semester • Course • Instructor</span>
+<body>
+  <div style="max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+    <header class="glass" style="padding: 28px;">
+      <div class="header-flex">
+        <div style="max-width: 900px;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+            <span class="pill">Interactive HTML Dashboard</span>
+            <span class="pill">Smart Filtering</span>
+            <span class="pill">Semester • Course • Instructor</span>
           </div>
-          <div>
-            <h1 class="text-3xl md:text-4xl font-semibold tracking-tight">HTU Course Development Dashboard</h1>
-            <p class="text-slate-300 mt-3 leading-7 max-w-2xl">
-              Explore course development progress and TLC participation from one place. The dashboard automatically adapts the insights based on the selected semester, course, instructor, school, or department.
-            </p>
-          </div>
+          <h1 style="font-size: 36px; margin: 0;">HTU Course Development Dashboard</h1>
+          <p class="muted" style="margin-top: 12px; line-height: 1.7;">
+            Explore course development progress and TLC participation from one place.
+            The dashboard automatically adapts the insights based on the selected semester, course,
+            instructor, school, or department.
+          </p>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 w-full xl:w-auto xl:min-w-[480px]" id="heroSummary">
-          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
-          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
-          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
-          <div class="glass-soft rounded-2xl p-4"><div class="loading-shimmer h-16"></div></div>
+        <div class="hero-grid" id="heroSummary">
+          <div class="glass-soft" style="padding: 16px;">
+            <div class="mini-label">Loading</div>
+            <div style="font-size: 28px; font-weight: 600; margin-top: 10px;">...</div>
+          </div>
+          <div class="glass-soft" style="padding: 16px;">
+            <div class="mini-label">Loading</div>
+            <div style="font-size: 28px; font-weight: 600; margin-top: 10px;">...</div>
+          </div>
+          <div class="glass-soft" style="padding: 16px;">
+            <div class="mini-label">Loading</div>
+            <div style="font-size: 28px; font-weight: 600; margin-top: 10px;">...</div>
+          </div>
+          <div class="glass-soft" style="padding: 16px;">
+            <div class="mini-label">Loading</div>
+            <div style="font-size: 28px; font-weight: 600; margin-top: 10px;">...</div>
+          </div>
         </div>
       </div>
     </header>
 
-    <section class="glass rounded-3xl p-5 md:p-6 space-y-5">
-      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+    <section class="glass" style="padding: 24px;">
+      <div class="toolbar" style="margin-bottom: 20px;">
         <div>
-          <h2 class="text-xl font-semibold">Filters</h2>
-          <p class="text-slate-400 text-sm mt-1">All filters work together. Choosing a course or instructor updates the KPIs, charts, and detail tables.</p>
+          <h2 style="margin: 0;">Filters</h2>
+          <p class="muted" style="margin-top: 8px;">All filters work together. Choosing a course or instructor updates the KPIs, charts, and detail tables.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button id="clearFiltersBtn" class="px-4 py-2 rounded-xl pill text-sm hover:bg-white/10 transition">Clear filters</button>
-          <button id="exportBtn" class="px-4 py-2 rounded-xl bg-sky-400/15 border border-sky-300/20 text-sky-100 text-sm hover:bg-sky-400/20 transition">Export current table CSV</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="clearFiltersBtn" class="btn">Clear filters</button>
+          <button id="exportBtn" class="btn btn-primary">Export current table CSV</button>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+      <div class="filters-grid">
         <div>
-          <label class="mini-label block mb-2">Semester</label>
-          <select id="semesterFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+          <label class="mini-label">Semester</label>
+          <select id="semesterFilter" class="filter-select"></select>
         </div>
         <div>
-          <label class="mini-label block mb-2">School</label>
-          <select id="schoolFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+          <label class="mini-label">School</label>
+          <select id="schoolFilter" class="filter-select"></select>
         </div>
         <div>
-          <label class="mini-label block mb-2">Department</label>
-          <select id="departmentFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+          <label class="mini-label">Department</label>
+          <select id="departmentFilter" class="filter-select"></select>
         </div>
         <div>
-          <label class="mini-label block mb-2">Course</label>
-          <select id="courseFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+          <label class="mini-label">Course</label>
+          <select id="courseFilter" class="filter-select"></select>
         </div>
         <div>
-          <label class="mini-label block mb-2">Instructor</label>
-          <select id="instructorFilter" class="filter-select w-full rounded-2xl px-4 py-3 text-sm"></select>
+          <label class="mini-label">Instructor</label>
+          <select id="instructorFilter" class="filter-select"></select>
         </div>
         <div>
-          <label class="mini-label block mb-2">Search</label>
-          <input id="searchInput" class="search-input w-full rounded-2xl px-4 py-3 text-sm" placeholder="Search course, SME, PM, dept..." />
+          <label class="mini-label">Search</label>
+          <input id="searchInput" class="search-input" placeholder="Search course, SME, PM, dept..." />
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-2" id="activeFilterChips"></div>
+      <div id="activeFilterChips" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;"></div>
     </section>
 
-    <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="metricCards"></section>
+    <section id="metricCards" class="cards-grid"></section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-12 gap-4">
-      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-7 space-y-4">
-        <div class="flex items-center justify-between gap-3">
+    <section class="charts-grid">
+      <div class="glass" style="padding: 24px;">
+        <div class="toolbar" style="margin-bottom: 14px;">
           <div>
-            <h3 class="text-lg font-semibold">Progress overview</h3>
-            <p class="text-sm text-slate-400">Changes based on the current filter context.</p>
+            <h3 style="margin:0;">Progress overview</h3>
+            <p class="muted" style="margin-top:6px;">Changes based on the current filter context.</p>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <button class="tab-btn active px-3 py-2 rounded-xl pill text-sm transition" data-chart-view="school">By school</button>
-            <button class="tab-btn px-3 py-2 rounded-xl pill text-sm transition" data-chart-view="department">By department</button>
-            <button class="tab-btn px-3 py-2 rounded-xl pill text-sm transition" data-chart-view="course">Top courses</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn tab-btn active" data-chart-view="school">By school</button>
+            <button class="btn tab-btn" data-chart-view="department">By department</button>
+            <button class="btn tab-btn" data-chart-view="course">Top courses</button>
           </div>
         </div>
-        <div class="h-[360px]">
-          <canvas id="progressChart"></canvas>
-        </div>
+        <div style="height: 360px;"><canvas id="progressChart"></canvas></div>
       </div>
 
-      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-5 space-y-4">
+      <div class="glass" style="padding: 24px;">
         <div>
-          <h3 class="text-lg font-semibold">Development stage mix</h3>
-          <p class="text-sm text-slate-400">Distribution of the currently visible courses.</p>
+          <h3 style="margin:0;">Development stage mix</h3>
+          <p class="muted" style="margin-top:6px;">Distribution of the currently visible courses.</p>
         </div>
-        <div class="h-[360px]">
-          <canvas id="stageChart"></canvas>
-        </div>
+        <div style="height: 360px; margin-top: 14px;"><canvas id="stageChart"></canvas></div>
       </div>
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-12 gap-4">
-      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-5 space-y-4">
+    <section class="bottom-grid">
+      <div class="glass" style="padding: 24px;">
         <div>
-          <h3 class="text-lg font-semibold">Instructor insight</h3>
-          <p class="text-sm text-slate-400">If an instructor is selected, this panel becomes instructor-specific. Otherwise it shows the top contributors in the current view.</p>
+          <h3 style="margin:0;">Instructor insight</h3>
+          <p class="muted" style="margin-top:6px;">If an instructor is selected, this panel becomes instructor-specific. Otherwise it shows the top contributors in the current view.</p>
         </div>
-        <div class="h-[340px]">
-          <canvas id="instructorChart"></canvas>
-        </div>
+        <div style="height: 340px; margin-top: 14px;"><canvas id="instructorChart"></canvas></div>
       </div>
 
-      <div class="glass rounded-3xl p-5 md:p-6 xl:col-span-7 space-y-4">
+      <div class="glass" style="padding: 24px;">
         <div>
-          <h3 class="text-lg font-semibold">TLC completion snapshot</h3>
-          <p class="text-sm text-slate-400">Instructor training completion pulled from the TLC sheets and connected to the main data.</p>
+          <h3 style="margin:0;">TLC completion snapshot</h3>
+          <p class="muted" style="margin-top:6px;">Instructor training completion pulled from the TLC sheets and connected to the main data.</p>
         </div>
-        <div id="tlcPanel" class="space-y-3"></div>
+        <div id="tlcPanel" style="display:flex; flex-direction:column; gap:12px; margin-top: 14px;"></div>
       </div>
     </section>
 
-    <section class="glass rounded-3xl p-5 md:p-6 space-y-4">
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <section class="glass" style="padding: 24px;">
+      <div class="toolbar" style="margin-bottom: 14px;">
         <div>
-          <h3 class="text-lg font-semibold">Detailed records</h3>
-          <p class="text-sm text-slate-400">The table reflects all active filters and search terms.</p>
+          <h3 style="margin:0;">Detailed records</h3>
+          <p class="muted" style="margin-top:6px;">The table reflects all active filters and search terms.</p>
         </div>
-        <div class="text-sm text-slate-400" id="tableCount"></div>
+        <div id="tableCount" class="muted"></div>
       </div>
 
-      <div class="table-wrap overflow-auto rounded-2xl border border-white/10">
-        <table class="min-w-full text-sm">
-          <thead class="bg-white/5 sticky top-0">
-            <tr class="text-left text-slate-300">
-              <th class="px-4 py-3 font-medium">Semester</th>
-              <th class="px-4 py-3 font-medium">School</th>
-              <th class="px-4 py-3 font-medium">Department</th>
-              <th class="px-4 py-3 font-medium">Course</th>
-              <th class="px-4 py-3 font-medium">Stage</th>
-              <th class="px-4 py-3 font-medium">PM</th>
-              <th class="px-4 py-3 font-medium">SMEs</th>
-              <th class="px-4 py-3 font-medium">Progress</th>
-              <th class="px-4 py-3 font-medium">Completed items</th>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Semester</th>
+              <th>School</th>
+              <th>Department</th>
+              <th>Course</th>
+              <th>Stage</th>
+              <th>PM</th>
+              <th>SMEs</th>
+              <th>Progress</th>
+              <th>Completed items</th>
             </tr>
           </thead>
           <tbody id="recordsTableBody"></tbody>
@@ -299,54 +434,57 @@
       rawCourses: [],
       rawTlc: [],
       filteredCourses: [],
-      selectedChartView: 'school',
+      selectedChartView: "school",
       charts: {},
       filters: {
-        semester: 'All',
-        school: 'All',
-        department: 'All',
-        course: 'All',
-        instructor: 'All',
-        search: ''
+        semester: "All",
+        school: "All",
+        department: "All",
+        course: "All",
+        instructor: "All",
+        search: ""
       }
     };
 
     const els = {
-      heroSummary: document.getElementById('heroSummary'),
-      metricCards: document.getElementById('metricCards'),
-      semesterFilter: document.getElementById('semesterFilter'),
-      schoolFilter: document.getElementById('schoolFilter'),
-      departmentFilter: document.getElementById('departmentFilter'),
-      courseFilter: document.getElementById('courseFilter'),
-      instructorFilter: document.getElementById('instructorFilter'),
-      searchInput: document.getElementById('searchInput'),
-      activeFilterChips: document.getElementById('activeFilterChips'),
-      recordsTableBody: document.getElementById('recordsTableBody'),
-      tableCount: document.getElementById('tableCount'),
-      tlcPanel: document.getElementById('tlcPanel'),
-      clearFiltersBtn: document.getElementById('clearFiltersBtn'),
-      exportBtn: document.getElementById('exportBtn')
+      heroSummary: document.getElementById("heroSummary"),
+      metricCards: document.getElementById("metricCards"),
+      semesterFilter: document.getElementById("semesterFilter"),
+      schoolFilter: document.getElementById("schoolFilter"),
+      departmentFilter: document.getElementById("departmentFilter"),
+      courseFilter: document.getElementById("courseFilter"),
+      instructorFilter: document.getElementById("instructorFilter"),
+      searchInput: document.getElementById("searchInput"),
+      activeFilterChips: document.getElementById("activeFilterChips"),
+      recordsTableBody: document.getElementById("recordsTableBody"),
+      tableCount: document.getElementById("tableCount"),
+      tlcPanel: document.getElementById("tlcPanel"),
+      clearFiltersBtn: document.getElementById("clearFiltersBtn"),
+      exportBtn: document.getElementById("exportBtn")
     };
 
     function normalizeWhitespace(value) {
-      return String(value ?? '')
-        .replace(/\u00A0/g, ' ')
-        .replace(/[\r\n]+/g, ' ')
-        .replace(/\s+/g, ' ')
+      return String(value ?? "")
+        .replace(/\u00A0/g, " ")
+        .replace(/[\r\n]+/g, " ")
+        .replace(/\s+/g, " ")
         .trim();
     }
 
     function cleanName(value) {
       return normalizeWhitespace(value)
-        .replace(/[.,]+$/g, '')
-        .replace(/\s+/g, ' ')
+        .replace(/[.,]+$/g, "")
+        .replace(/\s+/g, " ")
         .toLowerCase();
     }
 
     function titleCaseStage(stage) {
       const s = normalizeWhitespace(stage);
-      if (!s) return 'Unknown';
-      return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      if (!s) return "Unknown";
+      return s
+        .split(" ")
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ");
     }
 
     async function fetchCsv(url) {
@@ -358,32 +496,34 @@
 
     function splitPeople(text) {
       return normalizeWhitespace(text)
-        .split(/[,/]|\sand\s|\s&\s/gi)
+        .split(/[,/]/)
         .map(v => normalizeWhitespace(v))
         .filter(Boolean);
     }
 
     function isCompleted(value) {
       const v = normalizeWhitespace(value).toLowerCase();
-      return v !== '' && v !== 'false' && v !== '0' && v !== 'nan' && v !== 'null' && v !== 'undefined';
+      return v !== "" && v !== "false" && v !== "0" && v !== "nan" && v !== "null" && v !== "undefined";
     }
 
     function parseCourses(rows) {
       return rows.map((row, index) => {
-        const semester = normalizeWhitespace(row['Semester']);
-        const school = normalizeWhitespace(row['School']).replace(/^SBS$/i, 'SSBS');
-        const department = normalizeWhitespace(row['Department']);
-        const course = normalizeWhitespace(row['Course \ pathway'] || row['Course/pathway'] || row['Course']);
-        const stage = titleCaseStage(row['Development Stage']);
-        const pm = normalizeWhitespace(row['ID']);
-        const deptHead = normalizeWhitespace(row['Dept. Head']);
-        const smes = splitPeople(row['SMEs']);
+        const semester = normalizeWhitespace(row["Semester"]);
+        const school = normalizeWhitespace(row["School"]).replace(/^SBS$/i, "SSBS");
+        const department = normalizeWhitespace(row["Department"]);
+        const course = normalizeWhitespace(row["Course \\ pathway"] || row["Course/pathway"] || row["Course"]);
+        const stage = titleCaseStage(row["Development Stage"]);
+        const pm = normalizeWhitespace(row["ID"]);
+        const deptHead = normalizeWhitespace(row["Dept. Head"]);
+        const smes = splitPeople(row["SMEs"]);
 
         const completedItems = BLOCK_COLUMNS.filter(col => isCompleted(row[col]));
         const progressPct = Math.round((completedItems.length / BLOCK_COLUMNS.length) * 100);
 
         const contributors = new Set(smes.map(cleanName));
-        BLOCK_COLUMNS.forEach(col => splitPeople(row[col]).forEach(name => contributors.add(cleanName(name))));
+        BLOCK_COLUMNS.forEach(col => {
+          splitPeople(row[col]).forEach(name => contributors.add(cleanName(name)));
+        });
 
         return {
           id: `${semester}__${school}__${department}__${course}__${index}`,
@@ -398,9 +538,19 @@
           completedItems,
           progressPct,
           contributors: Array.from(contributors).filter(Boolean),
-          searchBlob: [semester, school, department, course, stage, pm, deptHead, smes.join(' '), ...BLOCK_COLUMNS.map(col => row[col])]
+          searchBlob: [
+            semester,
+            school,
+            department,
+            course,
+            stage,
+            pm,
+            deptHead,
+            smes.join(" "),
+            ...BLOCK_COLUMNS.map(col => row[col])
+          ]
             .map(v => normalizeWhitespace(v).toLowerCase())
-            .join(' | ')
+            .join(" | ")
         };
       }).filter(r => r.semester && r.course);
     }
@@ -408,19 +558,24 @@
     function parseTlcSheet(rows, sheetIndex) {
       if (!rows.length) return [];
       const columns = Object.keys(rows[0]);
-      const instructorCol = columns.find(c => cleanName(c).includes('istructor name') || cleanName(c).includes('instructor name')) || columns[0];
+      const instructorCol =
+        columns.find(c => cleanName(c).includes("istructor name") || cleanName(c).includes("instructor name")) ||
+        columns[0];
       const sessionCols = columns.filter(c => c !== instructorCol);
 
       return rows.map(row => {
         const instructor = normalizeWhitespace(row[instructorCol]);
-        const completedSessions = sessionCols.filter(col => normalizeWhitespace(row[col]).toLowerCase() === 'true');
+        const completedSessions = sessionCols.filter(col => normalizeWhitespace(row[col]).toLowerCase() === "true");
+
         return {
           instructor,
           instructorKey: cleanName(instructor),
           sheetIndex,
           totalSessions: sessionCols.length,
           completedSessions,
-          completionPct: sessionCols.length ? Math.round((completedSessions.length / sessionCols.length) * 100) : 0
+          completionPct: sessionCols.length
+            ? Math.round((completedSessions.length / sessionCols.length) * 100)
+            : 0
         };
       }).filter(r => r.instructor);
     }
@@ -436,7 +591,12 @@
         names.forEach(name => {
           if (!name) return;
           if (!instructorToCourseMeta.has(name)) {
-            instructorToCourseMeta.set(name, { schools: new Set(), departments: new Set(), courses: new Set(), semesters: new Set() });
+            instructorToCourseMeta.set(name, {
+              schools: new Set(),
+              departments: new Set(),
+              courses: new Set(),
+              semesters: new Set()
+            });
           }
           const meta = instructorToCourseMeta.get(name);
           meta.schools.add(course.school);
@@ -462,18 +622,20 @@
       return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
     }
 
-    function populateSelect(select, values, currentValue = 'All', placeholder = 'All') {
-      const options = ['All', ...values];
-      select.innerHTML = options.map(v => `<option value="${escapeHtml(v)}" ${v === currentValue ? 'selected' : ''}>${escapeHtml(v === 'All' ? placeholder : v)}</option>`).join('');
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
 
-    function escapeHtml(value) {
-      return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    function populateSelect(select, values, currentValue = "All", placeholder = "All") {
+      const options = ["All", ...values];
+      select.innerHTML = options
+        .map(v => `<option value="${escapeHtml(v)}" ${v === currentValue ? "selected" : ""}>${escapeHtml(v === "All" ? placeholder : v)}</option>`)
+        .join("");
     }
 
     function getAvailableOptions(baseRows) {
@@ -490,6 +652,7 @@
           if (pretty) instructorNames.add(pretty);
         });
       });
+
       state.rawTlc.forEach(t => instructorNames.add(t.instructor));
 
       return {
@@ -502,7 +665,7 @@
     }
 
     function instructorMatches(row, selectedInstructor) {
-      if (selectedInstructor === 'All') return true;
+      if (selectedInstructor === "All") return true;
       const key = cleanName(selectedInstructor);
       return row.contributors.includes(key) || row.smes.some(name => cleanName(name) === key);
     }
@@ -512,25 +675,32 @@
         const { semester, school, department, course, instructor, search } = state.filters;
         const passesSearch = !search || row.searchBlob.includes(search.toLowerCase());
 
-        return passesSearch &&
-          (semester === 'All' || row.semester === semester) &&
-          (school === 'All' || row.school === school) &&
-          (department === 'All' || row.department === department) &&
-          (course === 'All' || row.course === course) &&
-          instructorMatches(row, instructor);
+        return (
+          passesSearch &&
+          (semester === "All" || row.semester === semester) &&
+          (school === "All" || row.school === school) &&
+          (department === "All" || row.department === department) &&
+          (course === "All" || row.course === course) &&
+          instructorMatches(row, instructor)
+        );
       });
     }
 
     function getFilteredTlc() {
       return state.rawTlc.filter(row => {
         const { semester, school, department, course, instructor, search } = state.filters;
-        const textBlob = [row.instructor, ...row.schools, ...row.departments, ...row.linkedCourses, ...row.semesters].join(' ').toLowerCase();
-        return (!search || textBlob.includes(search.toLowerCase())) &&
-          (instructor === 'All' || cleanName(row.instructor) === cleanName(instructor)) &&
-          (semester === 'All' || row.semesters.includes(semester)) &&
-          (school === 'All' || row.schools.includes(school)) &&
-          (department === 'All' || row.departments.includes(department)) &&
-          (course === 'All' || row.linkedCourses.includes(course));
+        const textBlob = [row.instructor, ...row.schools, ...row.departments, ...row.linkedCourses, ...row.semesters]
+          .join(" ")
+          .toLowerCase();
+
+        return (
+          (!search || textBlob.includes(search.toLowerCase())) &&
+          (instructor === "All" || cleanName(row.instructor) === cleanName(instructor)) &&
+          (semester === "All" || row.semesters.includes(semester)) &&
+          (school === "All" || row.schools.includes(school)) &&
+          (department === "All" || row.departments.includes(department)) &&
+          (course === "All" || row.linkedCourses.includes(course))
+        );
       });
     }
 
@@ -560,17 +730,19 @@
 
     function renderHeroSummary(rows, tlcRows) {
       const activeInstructors = uniqueSorted(rows.flatMap(r => r.smes)).length;
+
       const html = [
-        { label: 'Visible courses', value: rows.length },
-        { label: 'Average progress', value: `${avg(rows.map(r => r.progressPct))}%` },
-        { label: 'Visible instructors', value: activeInstructors },
-        { label: 'Avg TLC completion', value: `${avg(tlcRows.map(r => r.completionPct))}%` }
+        { label: "Visible courses", value: rows.length },
+        { label: "Average progress", value: `${avg(rows.map(r => r.progressPct))}%` },
+        { label: "Visible instructors", value: activeInstructors },
+        { label: "Avg TLC completion", value: `${avg(tlcRows.map(r => r.completionPct))}%` }
       ].map(item => `
-        <div class="glass-soft rounded-2xl p-4">
+        <div class="glass-soft" style="padding:16px;">
           <div class="mini-label">${escapeHtml(item.label)}</div>
-          <div class="text-2xl font-semibold mt-2">${escapeHtml(item.value)}</div>
+          <div style="font-size:28px; font-weight:600; margin-top:10px;">${escapeHtml(item.value)}</div>
         </div>
-      `).join('');
+      `).join("");
+
       els.heroSummary.innerHTML = html;
     }
 
@@ -579,9 +751,9 @@
       const totalPossibleSlots = rows.length * BLOCK_COLUMNS.length;
       const coverage = totalPossibleSlots ? Math.round((totalCompletedSlots / totalPossibleSlots) * 100) : 0;
 
-      const reviewCount = rows.filter(r => r.stage.toLowerCase().includes('review')).length;
-      const selectedInstructor = state.filters.instructor !== 'All' ? state.filters.instructor : null;
-      const selectedCourse = state.filters.course !== 'All' ? state.filters.course : null;
+      const reviewCount = rows.filter(r => r.stage.toLowerCase().includes("review")).length;
+      const selectedInstructor = state.filters.instructor !== "All" ? state.filters.instructor : null;
+      const selectedCourse = state.filters.course !== "All" ? state.filters.course : null;
 
       const linkedCoursesForInstructor = selectedInstructor
         ? rows.filter(r => instructorMatches(r, selectedInstructor)).length
@@ -589,67 +761,69 @@
 
       const cards = [
         {
-          title: 'Overall completion coverage',
+          title: "Overall completion coverage",
           value: `${coverage}%`,
           helper: `${totalCompletedSlots} completed items out of ${totalPossibleSlots}`
         },
         {
-          title: 'Courses under review',
+          title: "Courses under review",
           value: reviewCount,
-          helper: reviewCount ? 'Needs follow-up and final checks' : 'No visible courses in review'
+          helper: reviewCount ? "Needs follow-up and final checks" : "No visible courses in review"
         },
         {
-          title: selectedCourse ? 'Selected course progress' : 'Median-like course snapshot',
+          title: selectedCourse ? "Selected course progress" : "Average course snapshot",
           value: selectedCourse && rows[0] ? `${rows[0].progressPct}%` : `${avg(rows.map(r => r.progressPct))}%`,
-          helper: selectedCourse && rows[0] ? rows[0].course : 'Average visible course progress'
+          helper: selectedCourse && rows[0] ? rows[0].course : "Average visible course progress"
         },
         {
-          title: selectedInstructor ? 'Instructor-linked courses' : 'TLC visible records',
+          title: selectedInstructor ? "Instructor-linked courses" : "TLC visible records",
           value: selectedInstructor ? linkedCoursesForInstructor : tlcRows.length,
           helper: selectedInstructor
             ? `Courses associated with ${selectedInstructor}`
-            : 'Instructor training records in current filter'
+            : "Instructor training records in current filter"
         }
       ];
 
       els.metricCards.innerHTML = cards.map(card => `
-        <div class="glass rounded-3xl p-5 metric-card">
+        <div class="glass metric-card">
           <div class="mini-label">${escapeHtml(card.title)}</div>
-          <div class="text-3xl font-semibold mt-3">${escapeHtml(card.value)}</div>
-          <div class="text-sm text-slate-400 mt-2 leading-6">${escapeHtml(card.helper)}</div>
+          <div style="font-size:32px; font-weight:600; margin-top:12px;">${escapeHtml(card.value)}</div>
+          <div class="muted" style="font-size:14px; margin-top:8px; line-height:1.7;">${escapeHtml(card.helper)}</div>
         </div>
-      `).join('');
+      `).join("");
     }
 
     function statusClass(stage) {
       const s = stage.toLowerCase();
-      if (s.includes('development')) return 'status-development';
-      if (s.includes('review')) return 'status-review';
-      if (s.includes('planning')) return 'status-planning';
-      return 'status-other';
+      if (s.includes("development")) return "status-development";
+      if (s.includes("review")) return "status-review";
+      if (s.includes("planning")) return "status-planning";
+      return "status-other";
     }
 
     function renderActiveFilterChips() {
       const chips = Object.entries(state.filters)
-        .filter(([key, value]) => key !== 'search' ? value !== 'All' : !!value)
+        .filter(([key, value]) => key !== "search" ? value !== "All" : !!value)
         .map(([key, value]) => {
           const label = key.charAt(0).toUpperCase() + key.slice(1);
-          return `<span class="pill rounded-full px-3 py-1.5 text-sm">${escapeHtml(label)}: ${escapeHtml(value)}</span>`;
+          return `<span class="pill">${escapeHtml(label)}: ${escapeHtml(value)}</span>`;
         });
 
-      els.activeFilterChips.innerHTML = chips.length ? chips.join('') : '<span class="text-sm text-slate-500">No active filters</span>';
+      els.activeFilterChips.innerHTML = chips.length
+        ? chips.join("")
+        : '<span class="muted" style="font-size:14px;">No active filters</span>';
     }
 
     function buildProgressChartData(rows, view) {
       if (!rows.length) return { labels: [], values: [] };
 
       let grouped;
-      if (view === 'department') {
+      if (view === "department") {
         grouped = sumBy(rows, r => r.department, r => r.progressPct).map(([name, total]) => {
           const count = rows.filter(r => r.department === name).length;
           return [name, Math.round(total / count)];
         });
-      } else if (view === 'course') {
+      } else if (view === "course") {
         grouped = rows
           .map(r => [r.course, r.progressPct])
           .sort((a, b) => b[1] - a[1])
@@ -669,7 +843,11 @@
 
     function renderChart(chartKey, canvasId, type, data, options = {}) {
       const ctx = document.getElementById(canvasId);
-      if (state.charts[chartKey]) state.charts[chartKey].destroy();
+
+      if (state.charts[chartKey]) {
+        state.charts[chartKey].destroy();
+      }
+
       state.charts[chartKey] = new Chart(ctx, {
         type,
         data,
@@ -677,18 +855,26 @@
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { labels: { color: '#dbe7ff' } },
+            legend: { labels: { color: "#dbe7ff" } },
             tooltip: {
-              backgroundColor: 'rgba(3,7,18,0.95)',
-              titleColor: '#ffffff',
-              bodyColor: '#dbe7ff',
-              borderColor: 'rgba(255,255,255,0.08)',
+              backgroundColor: "rgba(3,7,18,0.95)",
+              titleColor: "#ffffff",
+              bodyColor: "#dbe7ff",
+              borderColor: "rgba(255,255,255,0.08)",
               borderWidth: 1
             }
           },
-          scales: type === 'doughnut' ? {} : {
-            x: { ticks: { color: '#c5d3f0' }, grid: { color: 'rgba(255,255,255,0.06)' } },
-            y: { beginAtZero: true, max: 100, ticks: { color: '#c5d3f0' }, grid: { color: 'rgba(255,255,255,0.06)' } }
+          scales: type === "doughnut" ? {} : {
+            x: {
+              ticks: { color: "#c5d3f0" },
+              grid: { color: "rgba(255,255,255,0.06)" }
+            },
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { color: "#c5d3f0" },
+              grid: { color: "rgba(255,255,255,0.06)" }
+            }
           },
           ...options
         }
@@ -697,12 +883,20 @@
 
     function renderProgressChart(rows) {
       const { labels, values } = buildProgressChartData(rows, state.selectedChartView);
-      renderChart('progressChart', 'progressChart', 'bar', {
+
+      renderChart("progressChart", "progressChart", "bar", {
         labels,
         datasets: [{
-          label: 'Progress %',
+          label: "Progress %",
           data: values,
-          backgroundColor: ['rgba(125,211,252,0.75)', 'rgba(167,139,250,0.75)', 'rgba(52,211,153,0.75)', 'rgba(251,191,36,0.75)', 'rgba(244,114,182,0.75)', 'rgba(96,165,250,0.75)', 'rgba(74,222,128,0.75)', 'rgba(192,132,252,0.75)', 'rgba(250,204,21,0.75)', 'rgba(45,212,191,0.75)'],
+          backgroundColor: [
+            "rgba(125,211,252,0.75)",
+            "rgba(167,139,250,0.75)",
+            "rgba(52,211,153,0.75)",
+            "rgba(251,191,36,0.75)",
+            "rgba(244,114,182,0.75)",
+            "rgba(96,165,250,0.75)"
+          ],
           borderRadius: 10,
           borderSkipped: false
         }]
@@ -715,18 +909,19 @@
 
     function renderStageChart(rows) {
       const grouped = countBy(rows, r => r.stage);
-      renderChart('stageChart', 'stageChart', 'doughnut', {
+
+      renderChart("stageChart", "stageChart", "doughnut", {
         labels: grouped.map(([label]) => label),
         datasets: [{
           data: grouped.map(([, value]) => value),
           backgroundColor: [
-            'rgba(52,211,153,0.8)',
-            'rgba(251,191,36,0.8)',
-            'rgba(125,211,252,0.8)',
-            'rgba(167,139,250,0.8)',
-            'rgba(244,114,182,0.8)'
+            "rgba(52,211,153,0.8)",
+            "rgba(251,191,36,0.8)",
+            "rgba(125,211,252,0.8)",
+            "rgba(167,139,250,0.8)",
+            "rgba(244,114,182,0.8)"
           ],
-          borderColor: 'rgba(7,17,31,1)',
+          borderColor: "rgba(7,17,31,1)",
           borderWidth: 2
         }]
       });
@@ -735,7 +930,7 @@
     function computeInstructorData(rows, tlcRows) {
       const selectedInstructor = state.filters.instructor;
 
-      if (selectedInstructor !== 'All') {
+      if (selectedInstructor !== "All") {
         const relevantCourses = rows.filter(r => instructorMatches(r, selectedInstructor));
         const tlc = tlcRows.find(t => cleanName(t.instructor) === cleanName(selectedInstructor));
 
@@ -747,12 +942,14 @@
       }
 
       const map = new Map();
+
       rows.forEach(row => {
         row.smes.forEach(name => {
-          const key = name;
-          if (!map.has(key)) map.set(key, { courses: 0, progressTotal: 0 });
-          map.get(key).courses += 1;
-          map.get(key).progressTotal += row.progressPct;
+          if (!map.has(name)) {
+            map.set(name, { courses: 0, progressTotal: 0 });
+          }
+          map.get(name).courses += 1;
+          map.get(name).progressTotal += row.progressPct;
         });
       });
 
@@ -764,65 +961,74 @@
       return {
         labels: top.map(([name]) => name),
         values: top.map(([, progress]) => progress),
-        title: 'Top visible instructors by linked course contribution'
+        title: "Top visible instructors by linked course contribution"
       };
     }
 
     function renderInstructorChart(rows, tlcRows) {
       const { labels, values, title } = computeInstructorData(rows, tlcRows);
-      renderChart('instructorChart', 'instructorChart', 'bar', {
+
+      renderChart("instructorChart", "instructorChart", "bar", {
         labels,
         datasets: [{
           label: title,
           data: values,
-          backgroundColor: 'rgba(167,139,250,0.78)',
+          backgroundColor: "rgba(167,139,250,0.78)",
           borderRadius: 10,
           borderSkipped: false
         }]
       }, {
-        indexAxis: 'y',
-        plugins: { legend: { display: false } }
+        indexAxis: "y",
+        plugins: {
+          legend: { display: false }
+        }
       });
     }
 
-    function renderTlcPanel(tlcRows, courses) {
+    function renderTlcPanel(tlcRows) {
       if (!tlcRows.length) {
-        els.tlcPanel.innerHTML = '<div class="rounded-2xl border border-white/10 p-4 text-slate-400">No TLC records match the current filters.</div>';
+        els.tlcPanel.innerHTML = '<div class="glass-soft" style="padding:16px;">No TLC records match the current filters.</div>';
         return;
       }
 
       const selectedInstructor = state.filters.instructor;
 
-      if (selectedInstructor !== 'All') {
+      if (selectedInstructor !== "All") {
         const rec = tlcRows.find(t => cleanName(t.instructor) === cleanName(selectedInstructor));
+
         if (!rec) {
-          els.tlcPanel.innerHTML = `<div class="rounded-2xl border border-white/10 p-4 text-slate-400">${escapeHtml(selectedInstructor)} has no linked TLC record in the current view.</div>`;
+          els.tlcPanel.innerHTML = `<div class="glass-soft" style="padding:16px;">${escapeHtml(selectedInstructor)} has no linked TLC record in the current view.</div>`;
           return;
         }
 
         els.tlcPanel.innerHTML = `
-          <div class="glass-soft rounded-2xl p-5 space-y-4">
-            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+          <div class="glass-soft" style="padding:20px;">
+            <div class="toolbar">
               <div>
-                <div class="text-xl font-semibold">${escapeHtml(rec.instructor)}</div>
-                <div class="text-sm text-slate-400 mt-1">${escapeHtml(rec.linkedCourses.join(' • ') || 'No linked courses found')}</div>
+                <div style="font-size:22px; font-weight:600;">${escapeHtml(rec.instructor)}</div>
+                <div class="muted" style="margin-top:6px;">${escapeHtml(rec.linkedCourses.join(" • ") || "No linked courses found")}</div>
               </div>
-              <div class="text-right">
+              <div style="text-align:right;">
                 <div class="mini-label">TLC completion</div>
-                <div class="text-3xl font-semibold mt-1">${rec.completionPct}%</div>
+                <div style="font-size:32px; font-weight:600; margin-top:6px;">${rec.completionPct}%</div>
               </div>
             </div>
-            <div>
-              <div class="progress-track"><div class="progress-bar" style="width:${rec.completionPct}%"></div></div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div class="rounded-2xl border border-white/10 p-4">
-                <div class="mini-label mb-2">Completed sessions</div>
-                <div class="text-slate-200 leading-7">${rec.completedSessions.length ? rec.completedSessions.map(s => escapeHtml(s)).join('<br>') : 'No completed sessions marked'}</div>
+
+            <div style="margin-top:16px;">
+              <div class="progress-track">
+                <div class="progress-bar" style="width:${rec.completionPct}%"></div>
               </div>
-              <div class="rounded-2xl border border-white/10 p-4">
-                <div class="mini-label mb-2">Linked semesters</div>
-                <div class="text-slate-200 leading-7">${rec.semesters.length ? rec.semesters.map(s => escapeHtml(s)).join('<br>') : 'Not matched to a semester'}</div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+              <div class="glass-soft" style="padding:16px;">
+                <div class="mini-label" style="margin-bottom:8px;">Completed sessions</div>
+                <div style="line-height:1.8;">${rec.completedSessions.length ? rec.completedSessions.map(s => escapeHtml(s)).join("<br>") : "No completed sessions marked"}</div>
+              </div>
+
+              <div class="glass-soft" style="padding:16px;">
+                <div class="mini-label" style="margin-bottom:8px;">Linked semesters</div>
+                <div style="line-height:1.8;">${rec.semesters.length ? rec.semesters.map(s => escapeHtml(s)).join("<br>") : "Not matched to a semester"}</div>
               </div>
             </div>
           </div>
@@ -830,79 +1036,91 @@
         return;
       }
 
-      const top = [...tlcRows].sort((a, b) => b.completionPct - a.completionPct).slice(0, 8);
+      const top = [...tlcRows]
+        .sort((a, b) => b.completionPct - a.completionPct)
+        .slice(0, 8);
+
       els.tlcPanel.innerHTML = top.map(rec => `
-        <div class="glass-soft rounded-2xl p-4">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="glass-soft" style="padding:16px;">
+          <div class="toolbar">
             <div>
-              <div class="font-medium text-white">${escapeHtml(rec.instructor)}</div>
-              <div class="text-sm text-slate-400 mt-1">${escapeHtml((rec.linkedCourses || []).slice(0, 2).join(' • ') || 'No linked course found')}</div>
+              <div style="font-weight:600;">${escapeHtml(rec.instructor)}</div>
+              <div class="muted" style="margin-top:6px;">${escapeHtml((rec.linkedCourses || []).slice(0, 2).join(" • ") || "No linked course found")}</div>
             </div>
-            <div class="text-sm text-slate-200 min-w-[90px] md:text-right">${rec.completionPct}%</div>
+            <div>${rec.completionPct}%</div>
           </div>
-          <div class="progress-track mt-3"><div class="progress-bar" style="width:${rec.completionPct}%"></div></div>
+          <div class="progress-track" style="margin-top:12px;">
+            <div class="progress-bar" style="width:${rec.completionPct}%"></div>
+          </div>
         </div>
-      `).join('');
+      `).join("");
     }
 
     function renderTable(rows) {
-      els.tableCount.textContent = `${rows.length} record${rows.length === 1 ? '' : 's'} shown`;
+      els.tableCount.textContent = `${rows.length} record${rows.length === 1 ? "" : "s"} shown`;
 
       if (!rows.length) {
         els.recordsTableBody.innerHTML = `
           <tr>
-            <td colspan="9" class="px-4 py-10 text-center text-slate-400">No records match the current filters.</td>
+            <td colspan="9" style="padding:32px; text-align:center;" class="muted">No records match the current filters.</td>
           </tr>
         `;
         return;
       }
 
       els.recordsTableBody.innerHTML = rows.map(row => `
-        <tr class="border-t border-white/8 hover:bg-white/5 transition">
-          <td class="px-4 py-4 align-top">${escapeHtml(row.semester)}</td>
-          <td class="px-4 py-4 align-top">${escapeHtml(row.school)}</td>
-          <td class="px-4 py-4 align-top">${escapeHtml(row.department)}</td>
-          <td class="px-4 py-4 align-top">
-            <div class="font-medium text-white">${escapeHtml(row.course)}</div>
-            <div class="text-xs text-slate-400 mt-1">Dept head: ${escapeHtml(row.deptHead || '—')}</div>
+        <tr>
+          <td>${escapeHtml(row.semester)}</td>
+          <td>${escapeHtml(row.school)}</td>
+          <td>${escapeHtml(row.department)}</td>
+          <td>
+            <div style="font-weight:600;">${escapeHtml(row.course)}</div>
+            <div class="muted" style="font-size:12px; margin-top:6px;">Dept head: ${escapeHtml(row.deptHead || "—")}</div>
           </td>
-          <td class="px-4 py-4 align-top"><span class="status-chip ${statusClass(row.stage)}">${escapeHtml(row.stage)}</span></td>
-          <td class="px-4 py-4 align-top">${escapeHtml(row.pm || '—')}</td>
-          <td class="px-4 py-4 align-top max-w-[280px]">${escapeHtml(row.smes.join(', ') || '—')}</td>
-          <td class="px-4 py-4 align-top min-w-[180px]">
-            <div class="flex items-center justify-between text-xs text-slate-300 mb-2">
+          <td><span class="status-chip ${statusClass(row.stage)}">${escapeHtml(row.stage)}</span></td>
+          <td>${escapeHtml(row.pm || "—")}</td>
+          <td>${escapeHtml(row.smes.join(", ") || "—")}</td>
+          <td style="min-width:180px;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px;">
               <span>${row.progressPct}%</span>
               <span>${row.completedItems.length}/${BLOCK_COLUMNS.length}</span>
             </div>
-            <div class="progress-track"><div class="progress-bar" style="width:${row.progressPct}%"></div></div>
+            <div class="progress-track">
+              <div class="progress-bar" style="width:${row.progressPct}%"></div>
+            </div>
           </td>
-          <td class="px-4 py-4 align-top text-slate-300 max-w-[320px]">${escapeHtml(row.completedItems.join(', ') || '—')}</td>
+          <td>${escapeHtml(row.completedItems.join(", ") || "—")}</td>
         </tr>
-      `).join('');
+      `).join("");
     }
 
     function refreshFilterOptions() {
       const baseRows = state.rawCourses.filter(row => {
         const { semester, school, department, course, instructor, search } = state.filters;
-        return (!search || row.searchBlob.includes(search.toLowerCase())) &&
-          (semester === 'All' || row.semester === semester) &&
-          (school === 'All' || row.school === school) &&
-          (department === 'All' || row.department === department) &&
-          (course === 'All' || row.course === course) &&
-          instructorMatches(row, instructor);
+
+        return (
+          (!search || row.searchBlob.includes(search.toLowerCase())) &&
+          (semester === "All" || row.semester === semester) &&
+          (school === "All" || row.school === school) &&
+          (department === "All" || row.department === department) &&
+          (course === "All" || row.course === course) &&
+          instructorMatches(row, instructor)
+        );
       });
 
       const options = getAvailableOptions(baseRows.length ? baseRows : state.rawCourses);
-      populateSelect(els.semesterFilter, options.semester, state.filters.semester, 'All semesters');
-      populateSelect(els.schoolFilter, options.school, state.filters.school, 'All schools');
-      populateSelect(els.departmentFilter, options.department, state.filters.department, 'All departments');
-      populateSelect(els.courseFilter, options.course, state.filters.course, 'All courses');
-      populateSelect(els.instructorFilter, options.instructor, state.filters.instructor, 'All instructors');
+
+      populateSelect(els.semesterFilter, options.semester, state.filters.semester, "All semesters");
+      populateSelect(els.schoolFilter, options.school, state.filters.school, "All schools");
+      populateSelect(els.departmentFilter, options.department, state.filters.department, "All departments");
+      populateSelect(els.courseFilter, options.course, state.filters.course, "All courses");
+      populateSelect(els.instructorFilter, options.instructor, state.filters.instructor, "All instructors");
     }
 
     function updateDashboard() {
       const filteredCourses = getFilteredCourses();
       const filteredTlc = getFilteredTlc();
+
       state.filteredCourses = filteredCourses;
 
       renderHeroSummary(filteredCourses, filteredTlc);
@@ -911,36 +1129,73 @@
       renderProgressChart(filteredCourses);
       renderStageChart(filteredCourses);
       renderInstructorChart(filteredCourses, filteredTlc);
-      renderTlcPanel(filteredTlc, filteredCourses);
+      renderTlcPanel(filteredTlc);
       renderTable(filteredCourses);
     }
 
     function bindEvents() {
-      els.semesterFilter.addEventListener('change', e => { state.filters.semester = e.target.value; refreshFilterOptions(); updateDashboard(); });
-      els.schoolFilter.addEventListener('change', e => { state.filters.school = e.target.value; refreshFilterOptions(); updateDashboard(); });
-      els.departmentFilter.addEventListener('change', e => { state.filters.department = e.target.value; refreshFilterOptions(); updateDashboard(); });
-      els.courseFilter.addEventListener('change', e => { state.filters.course = e.target.value; refreshFilterOptions(); updateDashboard(); });
-      els.instructorFilter.addEventListener('change', e => { state.filters.instructor = e.target.value; refreshFilterOptions(); updateDashboard(); });
-      els.searchInput.addEventListener('input', e => { state.filters.search = e.target.value.trim(); refreshFilterOptions(); updateDashboard(); });
-
-      els.clearFiltersBtn.addEventListener('click', () => {
-        state.filters = { semester: 'All', school: 'All', department: 'All', course: 'All', instructor: 'All', search: '' };
-        els.searchInput.value = '';
+      els.semesterFilter.addEventListener("change", e => {
+        state.filters.semester = e.target.value;
         refreshFilterOptions();
         updateDashboard();
       });
 
-      document.querySelectorAll('[data-chart-view]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('[data-chart-view]').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
+      els.schoolFilter.addEventListener("change", e => {
+        state.filters.school = e.target.value;
+        refreshFilterOptions();
+        updateDashboard();
+      });
+
+      els.departmentFilter.addEventListener("change", e => {
+        state.filters.department = e.target.value;
+        refreshFilterOptions();
+        updateDashboard();
+      });
+
+      els.courseFilter.addEventListener("change", e => {
+        state.filters.course = e.target.value;
+        refreshFilterOptions();
+        updateDashboard();
+      });
+
+      els.instructorFilter.addEventListener("change", e => {
+        state.filters.instructor = e.target.value;
+        refreshFilterOptions();
+        updateDashboard();
+      });
+
+      els.searchInput.addEventListener("input", e => {
+        state.filters.search = e.target.value.trim();
+        refreshFilterOptions();
+        updateDashboard();
+      });
+
+      els.clearFiltersBtn.addEventListener("click", () => {
+        state.filters = {
+          semester: "All",
+          school: "All",
+          department: "All",
+          course: "All",
+          instructor: "All",
+          search: ""
+        };
+        els.searchInput.value = "";
+        refreshFilterOptions();
+        updateDashboard();
+      });
+
+      document.querySelectorAll("[data-chart-view]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("[data-chart-view]").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
           state.selectedChartView = btn.dataset.chartView;
           renderProgressChart(state.filteredCourses);
         });
       });
 
-      els.exportBtn.addEventListener('click', () => {
+      els.exportBtn.addEventListener("click", () => {
         if (!state.filteredCourses.length) return;
+
         const rows = state.filteredCourses.map(row => ({
           Semester: row.semester,
           School: row.school,
@@ -948,16 +1203,17 @@
           Course: row.course,
           Stage: row.stage,
           PM: row.pm,
-          SMEs: row.smes.join(', '),
+          SMEs: row.smes.join(", "),
           ProgressPct: row.progressPct,
-          CompletedItems: row.completedItems.join(', ')
+          CompletedItems: row.completedItems.join(", ")
         }));
+
         const csv = Papa.unparse(rows);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = 'htu_dashboard_filtered_data.csv';
+        a.download = "htu_dashboard_filtered_data.csv";
         a.click();
         URL.revokeObjectURL(url);
       });
@@ -983,11 +1239,14 @@
       } catch (error) {
         console.error(error);
         document.body.innerHTML = `
-          <div class="min-h-screen flex items-center justify-center p-8">
-            <div class="glass rounded-3xl p-8 max-w-2xl w-full text-center">
-              <h1 class="text-2xl font-semibold mb-3">Failed to load dashboard data</h1>
-              <p class="text-slate-300 leading-7">The HTML loaded, but the sheet data could not be fetched. Please verify that the Google Sheets CSV links are public and accessible.</p>
-              <p class="text-sm text-rose-300 mt-4">${escapeHtml(error.message)}</p>
+          <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px;">
+            <div class="glass" style="padding:32px; max-width:700px; width:100%; text-align:center;">
+              <h1 style="font-size:28px; margin-bottom:12px;">Failed to load dashboard data</h1>
+              <p class="muted" style="line-height:1.8;">
+                The app loaded, but the sheet data could not be fetched.
+                Please verify that the Google Sheets CSV links are public and accessible.
+              </p>
+              <p style="margin-top:14px; color:#fda4af;">${escapeHtml(error.message)}</p>
             </div>
           </div>
         `;
@@ -998,3 +1257,7 @@
   </script>
 </body>
 </html>
+"""
+
+st.title("HTU Course Development Dashboard")
+components.html(html_code, height=2400, scrolling=True)
