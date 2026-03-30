@@ -36,12 +36,6 @@ SEMESTER_ORDER = {
     "spring 2025/2026": 3,
 }
 
-SEMESTER_PAGES = {
-    "🌱 Spring 2024/2025": "spring 2024/2025",
-    "🍂 Fall 2025/2026": "fall 2025/2026",
-    "🌸 Spring 2025/2026": "spring 2025/2026",
-}
-
 # ==========================
 # Helpers
 # ==========================
@@ -193,7 +187,6 @@ def semester_in_span(selected_semester_key: str, start_semester_key: str, end_se
 
     if x_rank is None:
         return False
-
     if s_rank is None and e_rank is None:
         return False
 
@@ -210,6 +203,14 @@ def semester_in_span(selected_semester_key: str, start_semester_key: str, end_se
 
 def semester_badges(selected_semester_key: str, start_semester_key: str, end_semester_key: str):
     badges = []
+
+    if not start_semester_key and not end_semester_key:
+        return badges
+
+    if not start_semester_key:
+        start_semester_key = end_semester_key
+    if not end_semester_key:
+        end_semester_key = start_semester_key
 
     if start_semester_key == end_semester_key:
         badges.append("Single-semester course")
@@ -333,6 +334,40 @@ def get_instructor_tlc_summary(df_tlc: pd.DataFrame, instructor_name: str):
     return {"completed": completed, "total": total, "pct": pct}
 
 
+def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    rename_map = {}
+    for col in df.columns:
+        c = str(col).strip().lower()
+        c = re.sub(r"\s+", " ", c)
+
+        if c in {"course / pathway", "course pathway", "course \\ pathway", "course \\\\ pathway", "course\\pathway"}:
+            rename_map[col] = "Course \\ pathway"
+        elif c in {"start semester", "semester start", "starting semester", "start_semester"}:
+            rename_map[col] = "Start Semester"
+        elif c in {"end semester", "semester end", "ending semester", "end_semester"}:
+            rename_map[col] = "End Semester"
+        elif c == "semester":
+            rename_map[col] = "Semester"
+        elif c == "school":
+            rename_map[col] = "School"
+        elif c == "department":
+            rename_map[col] = "Department"
+        elif c == "development stage":
+            rename_map[col] = "Development Stage"
+        elif c in {"dept. head", "dept head", "department head"}:
+            rename_map[col] = "Dept. Head"
+        elif c in {"smes", "sme", "instructors"}:
+            rename_map[col] = "SMEs"
+        elif c == "id":
+            rename_map[col] = "ID"
+        elif c == "detailed outline":
+            rename_map[col] = "Detailed Outline"
+        elif c == "notes":
+            rename_map[col] = "Notes"
+
+    return df.rename(columns=rename_map)
+
+
 # ==========================
 # Load Courses Data
 # ==========================
@@ -340,17 +375,7 @@ def get_instructor_tlc_summary(df_tlc: pd.DataFrame, instructor_name: str):
 def load_data():
     df = pd.read_csv(DATA_URL)
     df.columns = df.columns.astype(str).str.strip()
-
-    for possible in [
-        "Course \\ pathway",
-        "Course \\\\ pathway",
-        "Course / pathway",
-        "Course pathway",
-        "Course \\pathway",
-        "Course  pathway",
-    ]:
-        if possible in df.columns and possible != "Course \\ pathway":
-            df = df.rename(columns={possible: "Course \\ pathway"})
+    df = standardize_columns(df)
 
     base_text_cols = [
         "Semester",
@@ -399,14 +424,23 @@ def load_data():
             df[c] = df[c].fillna("").astype(str).str.strip()
             df[c] = df[c].replace({"nan": "", "None": "", "null": "", "NaN": ""})
 
-    df["Start Semester"] = df.apply(
-        lambda r: clean_text_value(r.get("Start Semester", "")) if is_filled(r.get("Start Semester", "")) else clean_text_value(r.get("Semester", "")),
-        axis=1
-    )
-    df["End Semester"] = df.apply(
-        lambda r: clean_text_value(r.get("End Semester", "")) if is_filled(r.get("End Semester", "")) else clean_text_value(r.get("Semester", "")),
-        axis=1
-    )
+    # Better semester fallback logic
+    def resolve_start_semester(row):
+        start_val = clean_text_value(row.get("Start Semester", ""))
+        semester_val = clean_text_value(row.get("Semester", ""))
+        if start_val:
+            return start_val
+        return semester_val
+
+    def resolve_end_semester(row):
+        end_val = clean_text_value(row.get("End Semester", ""))
+        semester_val = clean_text_value(row.get("Semester", ""))
+        if end_val:
+            return end_val
+        return semester_val
+
+    df["Start Semester"] = df.apply(resolve_start_semester, axis=1)
+    df["End Semester"] = df.apply(resolve_end_semester, axis=1)
 
     df["__start_semester_key__"] = df["Start Semester"].apply(normalize_semester_label)
     df["__end_semester_key__"] = df["End Semester"].apply(normalize_semester_label)
@@ -797,6 +831,16 @@ st.markdown("<h2 style='text-align:center;'>HTU Digital Twin by 2028 Progress</h
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================
+# Debug helper
+# ==========================
+with st.expander("Debug semester columns", expanded=False):
+    debug_cols = df_all[[
+        "Course \\ pathway", "Semester", "Start Semester", "End Semester",
+        "__start_semester_key__", "__end_semester_key__"
+    ]].head(20).copy()
+    st.dataframe(debug_cols, use_container_width=True)
+
+# ==========================
 # Global Search
 # ==========================
 if clean_text_value(st.session_state["global_search"]):
@@ -945,79 +989,6 @@ elif page == "🏫 Instructors":
                     report = pd.DataFrame(rows)
                     report = report.drop_duplicates().sort_values(["Start Semester", "Course"]).reset_index(drop=True)
                     st.dataframe(report, use_container_width=True)
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.subheader("Notes")
-
-                    notes_items = []
-                    for _, r in df_i.iterrows():
-                        course_name = clean_text_value(r.get("Course \\ pathway", ""))
-                        start_sem = clean_text_value(r.get("Start Semester", ""))
-                        end_sem = clean_text_value(r.get("End Semester", ""))
-
-                        worked_any = False
-                        if instructor_mentioned_in_cell(r.get("Detailed Outline", ""), instructor):
-                            worked_any = True
-                        else:
-                            for i in range(1, 16):
-                                if instructor_mentioned_in_cell(r.get(f"Block {i}", ""), instructor):
-                                    worked_any = True
-                                    break
-
-                        note_txt = clean_text_value(r.get("Notes", ""))
-                        if worked_any and note_txt:
-                            notes_items.append({
-                                "Semester Span": f"{start_sem} → {end_sem}",
-                                "Course": course_name,
-                                "Notes": note_txt,
-                            })
-
-                    if len(notes_items) == 0:
-                        st.info("No notes found for the selected instructor.")
-                    else:
-                        notes_df = pd.DataFrame(notes_items).drop_duplicates().sort_values(["Semester Span", "Course"]).reset_index(drop=True)
-                        for _, item in notes_df.iterrows():
-                            st.markdown(f"• **{item['Semester Span']} — {item['Course']}**: {item['Notes']}")
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.subheader("TLC Sessions Progress")
-
-                    instructor_key = normalize_person_name(instructor)
-                    tlc_match = df_tlc[df_tlc["__name_key__"] == instructor_key].copy()
-
-                    if tlc_match.shape[0] == 0 and df_tlc.shape[0] > 0:
-                        tlc_match = df_tlc[df_tlc["__name_key__"].astype(str).str.contains(re.escape(instructor_key), na=False)].copy()
-                        if tlc_match.shape[0] == 0:
-                            tlc_match = df_tlc[df_tlc["__name_key__"].apply(lambda x: instructor_key in str(x) or str(x) in instructor_key)].copy()
-
-                    if tlc_match.shape[0] == 0:
-                        st.info("No TLC session data found for this instructor.")
-                    else:
-                        session_cols = [
-                            c for c in tlc_match.columns
-                            if c not in {"Instructor Name", "__name_key__"}
-                            and str(c).strip() != ""
-                            and not str(c).strip().lower().startswith("unnamed")
-                        ]
-
-                        merged = {c: bool(tlc_match[c].fillna(False).astype(bool).any()) for c in session_cols}
-
-                        session_rows = []
-                        completed = 0
-                        total = len(session_cols)
-
-                        for c in session_cols:
-                            done = bool(merged.get(c, False))
-                            if done:
-                                completed += 1
-                            session_rows.append({"Session": c, "Completion": "✅" if done else "❌"})
-
-                        tlc_table = pd.DataFrame(session_rows)
-                        st.table(tlc_table)
-
-                        pct = 0 if total == 0 else (completed / total) * 100
-                        st.progress(int(pct))
-                        st.write(f"TLC Completion: {completed} / {total} ({pct:.1f}%)")
 
 # ==========================
 # SEMESTER PAGES
