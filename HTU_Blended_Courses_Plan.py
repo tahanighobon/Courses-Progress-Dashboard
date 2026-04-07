@@ -921,7 +921,7 @@ elif page == "🏫 Instructors":
 elif page == "🌱 Spring 2024/2025":
     render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
 
-elif page == " Fall 2025/2026":
+elif page == "🍂 Fall 2025/2026":
     render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
 
 elif page == "🌸 Spring 2025/2026":
