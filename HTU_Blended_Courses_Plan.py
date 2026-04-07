@@ -13,7 +13,7 @@ if "global_search" not in st.session_state:
     st.session_state["global_search"] = ""
 
 if "last_page" not in st.session_state:
-    st.session_state["last_page"] = " Home"
+    st.session_state["last_page"] = "🏠 Home"
 
 # ==========================
 # URLs
