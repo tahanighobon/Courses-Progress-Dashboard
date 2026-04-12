@@ -465,7 +465,60 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 def render_search_page(df_all: pd.DataFrame):
     st.subheader("Search")
 
-    query = st.text_input("Search by Course, SME, ID, Notes, Department, or School")
+    suggestion_fields = [
+        "Course \\ pathway",
+        "SMEs",
+        "ID",
+        "Notes",
+        "Department",
+        "School",
+        "Semester",
+        "Development Stage",
+    ]
+
+    suggestions_set = set()
+    for col in suggestion_fields:
+        if col in df_all.columns:
+            for val in df_all[col].dropna().tolist():
+                txt = clean_text_value(val)
+                if txt:
+                    if col == "SMEs":
+                        for item in split_instructors(txt):
+                            if item:
+                                suggestions_set.add(item)
+                    else:
+                        suggestions_set.add(txt)
+
+    all_suggestions = sorted(suggestions_set, key=lambda x: x.lower())
+
+    query = st.text_input(
+        "Search by Course, SME, ID, Notes, Department, or School",
+        key="search_text_input"
+    )
+
+    matched_suggestions = []
+    if query.strip():
+        q = query.strip().lower()
+        matched_suggestions = [
+            s for s in all_suggestions
+            if s.lower().startswith(q)
+        ][:15]
+
+    if matched_suggestions:
+        selected_suggestion = st.selectbox(
+            "Suggestions",
+            matched_suggestions,
+            index=0,
+            key="search_suggestion_box"
+        )
+        use_suggestion = st.checkbox(
+            "Use selected suggestion",
+            value=True,
+            key="use_selected_suggestion"
+        )
+        final_query = selected_suggestion if use_suggestion else query
+    else:
+        final_query = query
 
     semester_options = ["All"] + sorted(
         [s for s in df_all["Semester"].dropna().unique() if clean_text_value(s) != ""]
@@ -474,8 +527,8 @@ def render_search_page(df_all: pd.DataFrame):
         [s for s in df_all["School"].dropna().unique() if clean_text_value(s) != ""]
     )
 
-    semester_filter = st.selectbox("Filter by Semester", semester_options)
-    school_filter = st.selectbox("Filter by School", school_options)
+    semester_filter = st.selectbox("Filter by Semester", semester_options, key="search_semester_filter")
+    school_filter = st.selectbox("Filter by School", school_options, key="search_school_filter")
 
     df_search = df_all.copy()
 
@@ -485,8 +538,8 @@ def render_search_page(df_all: pd.DataFrame):
     if school_filter != "All":
         df_search = df_search[df_search["School"] == school_filter]
 
-    if query.strip():
-        q = query.strip().lower()
+    if final_query.strip():
+        q = final_query.strip().lower()
 
         def row_matches(row):
             searchable_fields = [
