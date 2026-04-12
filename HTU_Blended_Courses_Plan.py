@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import re
-from streamlit_searchbox import st_searchbox
 
 st.set_page_config(layout="wide")
 
@@ -300,55 +299,6 @@ def load_tlc_sessions():
 
 
 # ==========================
-# Search helpers
-# ==========================
-
-@st.cache_data
-def build_search_suggestions(df_all: pd.DataFrame) -> list[str]:
-    suggestion_fields = [
-        "Course \\ pathway",
-        "SMEs",
-        "ID",
-        "Notes",
-        "Department",
-        "School",
-        "Semester",
-        "Development Stage",
-    ]
-
-    suggestions_set = set()
-
-    for col in suggestion_fields:
-        if col in df_all.columns:
-            for val in df_all[col].dropna().tolist():
-                txt = clean_text_value(val)
-                if not txt:
-                    continue
-
-                if col == "SMEs":
-                    for item in split_instructors(txt):
-                        cleaned = clean_text_value(item)
-                        if cleaned:
-                            suggestions_set.add(cleaned)
-                else:
-                    suggestions_set.add(txt)
-
-    return sorted(suggestions_set, key=lambda x: x.lower())
-
-
-def search_database(searchterm: str) -> list[str]:
-    suggestions = st.session_state.get("_all_search_suggestions", [])
-    if not searchterm:
-        return []
-
-    q = searchterm.strip().lower()
-    starts_with = [s for s in suggestions if s.lower().startswith(q)]
-    contains = [s for s in suggestions if q in s.lower() and not s.lower().startswith(q)]
-
-    return (starts_with + contains)[:15]
-
-
-# ==========================
 # Semester Page Renderer
 # ==========================
 
@@ -515,12 +465,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 def render_search_page(df_all: pd.DataFrame):
     st.subheader("Search")
 
-    selected_value = st_searchbox(
-        search_function=search_database,
-        placeholder="Search by Course, SME, ID, Notes, Department, or School",
-        label="Search",
-        key="main_searchbox",
-    )
+    query = st.text_input("Search by Course, SME, ID, Notes, Department, or School")
 
     semester_options = ["All"] + sorted(
         [s for s in df_all["Semester"].dropna().unique() if clean_text_value(s) != ""]
@@ -529,8 +474,8 @@ def render_search_page(df_all: pd.DataFrame):
         [s for s in df_all["School"].dropna().unique() if clean_text_value(s) != ""]
     )
 
-    semester_filter = st.selectbox("Filter by Semester", semester_options, key="search_semester_filter")
-    school_filter = st.selectbox("Filter by School", school_options, key="search_school_filter")
+    semester_filter = st.selectbox("Filter by Semester", semester_options)
+    school_filter = st.selectbox("Filter by School", school_options)
 
     df_search = df_all.copy()
 
@@ -540,10 +485,8 @@ def render_search_page(df_all: pd.DataFrame):
     if school_filter != "All":
         df_search = df_search[df_search["School"] == school_filter]
 
-    final_query = clean_text_value(selected_value)
-
-    if final_query:
-        q = final_query.strip().lower()
+    if query.strip():
+        q = query.strip().lower()
 
         def row_matches(row):
             searchable_fields = [
@@ -640,7 +583,6 @@ st.markdown("<hr>", unsafe_allow_html=True)
 
 df_all = load_data()
 df_tlc = load_tlc_sessions()
-st.session_state["_all_search_suggestions"] = build_search_suggestions(df_all)
 
 
 # ==========================
