@@ -52,7 +52,7 @@ def norm_bool(x) -> bool:
     return s in {"true", "yes", "1", "✓", "✔", "✅", "done"}
 
 
-def render_donut_chart(percent: float, key: str, size_px=170):
+def render_donut_chart(percent: float, key: str, size_px: int = 170):
     pct = 0.0 if pd.isna(percent) else float(percent)
     pct = max(0.0, min(100.0, pct))
 
@@ -148,12 +148,10 @@ def normalize_semester_label(s: str) -> str:
         "spring 2024/25": "spring 2024/2025",
         "spring 24/2025": "spring 2024/2025",
         "spring 2024/2025": "spring 2024/2025",
-
         "fall 25/26": "fall 2025/2026",
         "fall 2025/26": "fall 2025/2026",
         "fall 25/2026": "fall 2025/2026",
         "fall 2025/2026": "fall 2025/2026",
-
         "spring 25/26": "spring 2025/2026",
         "spring 2025/26": "spring 2025/2026",
         "spring 25/2026": "spring 2025/2026",
@@ -546,7 +544,7 @@ def render_search_page(df_all: pd.DataFrame):
 try:
     st.sidebar.image("htu_logo.png", use_container_width=True)
 except Exception:
-    pass
+    st.sidebar.markdown("### HTU")
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
@@ -562,8 +560,10 @@ page = st.sidebar.radio(
     ]
 )
 
+view = None
 if page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026", "🌸 Spring 2025/2026"]:
     view = st.sidebar.radio("View", ["Overview", "Schools"])
+
 
 # ==========================
 # Header
@@ -576,12 +576,14 @@ st.markdown(
 )
 st.markdown("<hr>", unsafe_allow_html=True)
 
+
 # ==========================
 # Load all data once
 # ==========================
 
 df_all = load_data()
 df_tlc = load_tlc_sessions()
+
 
 # ==========================
 # HOME PAGE
@@ -620,8 +622,12 @@ if page == "🏠 Home":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    ordered_summary = ["SBEE", "SCI", "SET", "SSBS"]
+    summary_map = {item["school"]: item for item in summary}
+    display_summary = [summary_map[s] for s in ordered_summary if s in summary_map]
+
     cols = st.columns(4)
-    for i, s in enumerate(summary):
+    for i, s in enumerate(display_summary):
         with cols[i]:
             st.markdown(
                 f"""
@@ -653,18 +659,20 @@ if page == "🏠 Home":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+
 # ==========================
 # SEARCH TAB
 # ==========================
 
-if page == "🔎 Search":
+elif page == "🔎 Search":
     render_search_page(df_all)
+
 
 # ==========================
 # INSTRUCTORS TAB
 # ==========================
 
-if page == "🏫 Instructors":
+elif page == "🏫 Instructors":
     st.subheader("Instructors")
 
     school_options = sorted(df_all["School"].dropna().unique())
@@ -780,9 +788,11 @@ if page == "🏫 Instructors":
                     if tlc_match.shape[0] == 0 and df_tlc.shape[0] > 0:
                         tlc_match = df_tlc[df_tlc["__name_key__"].astype(str).str.contains(re.escape(instructor_key), na=False)].copy()
                         if tlc_match.shape[0] == 0:
-                            tlc_match = df_tlc[df_tlc["__name_key__"].apply(
-                                lambda x: instructor_key in str(x) or str(x) in instructor_key
-                            )].copy()
+                            tlc_match = df_tlc[
+                                df_tlc["__name_key__"].apply(
+                                    lambda x: instructor_key in str(x) or str(x) in instructor_key
+                                )
+                            ].copy()
 
                     if tlc_match.shape[0] == 0:
                         st.info("No TLC session data found for this instructor (in the 4 TLC sheets).")
@@ -815,18 +825,20 @@ if page == "🏫 Instructors":
                         st.progress(int(pct))
                         st.write(f"TLC Completion: {completed} / {total} ({pct:.1f}%)")
 
+
 # ==========================
 # SEMESTER PAGES
 # ==========================
 
-if page == "🌱 Spring 2024/2025":
+elif page == "🌱 Spring 2024/2025":
     render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
 
-if page == "🍂 Fall 2025/2026":
+elif page == "🍂 Fall 2025/2026":
     render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
 
-if page == "🌸 Spring 2025/2026":
+elif page == "🌸 Spring 2025/2026":
     render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
+
 
 # ==========================
 # Footer
