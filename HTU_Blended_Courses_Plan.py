@@ -321,22 +321,63 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
             st.info("No schools found.")
         else:
             cols = st.columns(len(schools))
+
+            
             for i, school in enumerate(schools):
                 with cols[i]:
                     s_df = df[df["School"] == school]
                     avg = s_df["Progress %"].mean()
                     course_count = s_df.shape[0]
-
+            
+                    # ==========================
+                    # SSBS HOLD BADGE
+                    # ==========================
+                    hold_badge = ""
+            
+                    if (
+                        normalize_semester_label(semester_label) == "spring 2025/2026"
+                        and school == "SSBS"
+                    ):
+                        hold_badge = """
+                        <div style="
+                            display:inline-block;
+                            background:#8B0000;
+                            color:white;
+                            padding:4px 12px;
+                            border-radius:999px;
+                            font-size:12px;
+                            font-weight:700;
+                            margin-top:8px;
+                            margin-bottom:6px;
+                            animation: pulse 1.5s infinite;
+                            box-shadow:0 0 12px rgba(255,0,0,0.4);
+                        ">
+                            ⏸ ON HOLD
+                        </div>
+            
+                        <style>
+                        @keyframes pulse {
+                            0% { transform: scale(1); opacity: 1; }
+                            50% { transform: scale(1.05); opacity: 0.75; }
+                            100% { transform: scale(1); opacity: 1; }
+                        }
+                        </style>
+                        """
+            
                     st.markdown(
                         f"""
                         <div style='text-align:center; margin-bottom:-10px;'>
                           <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
                           <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
+                          {hold_badge}
                         </div>
                         """,
                         unsafe_allow_html=True,
                     )
+            
                     render_donut_chart(avg, key=f"{key_prefix}-donut-{i}-{school}")
+
+        
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         overall = df["Progress %"].mean()
