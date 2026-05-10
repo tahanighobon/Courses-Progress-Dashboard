@@ -316,6 +316,44 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         st.markdown(f"<h3>{semester_label}</h3>", unsafe_allow_html=True)
         st.subheader("🎯 Course Progress by School")
 
+        # ==========================
+        # SSBS HOLD INDICATOR
+        # ==========================
+        
+        if normalize_semester_label(semester_label) == "spring 2025/2026":
+        
+            st.markdown(
+                """
+                <style>
+                @keyframes blink {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.35; }
+                    100% { opacity: 1; }
+                }
+        
+                .hold-chip {
+                    display: inline-block;
+                    background: #8B0000;
+                    color: white;
+                    padding: 10px 18px;
+                    border-radius: 999px;
+                    font-weight: 700;
+                    font-size: 15px;
+                    margin-bottom: 18px;
+                    animation: blink 1.2s infinite;
+                    border: 2px solid #ff4d4d;
+                    box-shadow: 0 0 12px rgba(255,77,77,0.45);
+                }
+                </style>
+        
+                <div class="hold-chip">
+                    ⏸ SSBS — ON HOLD FOR SPRING 2025/2026
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    
+
         schools = df["School"].dropna().unique()
         if len(schools) == 0:
             st.info("No schools found.")
