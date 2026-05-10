@@ -349,33 +349,33 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                             and school == "SSBS"
                         ):
                             hold_badge = """
-                            <div style="
-                                position:absolute;
-                                top:72px;
-                                left:50%;
-                                transform:translateX(-50%);
-                                z-index:10;
-                                background:#8B0000;
-                                color:white;
-                                padding:5px 14px;
-                                border-radius:999px;
-                                font-size:12px;
-                                font-weight:700;
-                                animation:pulse 1.5s infinite;
-                                box-shadow:0 0 14px rgba(255,0,0,0.45);
-                                white-space:nowrap;
-                            ">
-                                ⏸ ON HOLD
-                            </div>
-                        
-                            <style>
-                            @keyframes pulse {
-                                0% { opacity:1; transform:translateX(-50%) scale(1); }
-                                50% { opacity:0.75; transform:translateX(-50%) scale(1.05); }
-                                100% { opacity:1; transform:translateX(-50%) scale(1); }
-                            }
-                            </style>
-                            """
+                                <div style="
+                                    position:absolute;
+                                    top:72px;
+                                    left:50%;
+                                    transform:translateX(-50%);
+                                    z-index:10;
+                                    background:#8B0000;
+                                    color:white;
+                                    padding:5px 14px;
+                                    border-radius:999px;
+                                    font-size:12px;
+                                    font-weight:700;
+                                    animation:pulse 1.5s infinite;
+                                    box-shadow:0 0 14px rgba(255,0,0,0.45);
+                                    white-space:nowrap;
+                                ">
+                                    ⏸ ON HOLD
+                                </div>
+                            
+                                <style>
+                                @keyframes pulse {
+                                    0% { opacity:1; transform:translateX(-50%) scale(1); }
+                                    50% { opacity:0.75; transform:translateX(-50%) scale(1.05); }
+                                    100% { opacity:1; transform:translateX(-50%) scale(1); }
+                                }
+                                </style>
+                                """
             
                     st.markdown(
                         f"""
