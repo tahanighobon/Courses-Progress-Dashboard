@@ -316,126 +316,27 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         st.markdown(f"<h3>{semester_label}</h3>", unsafe_allow_html=True)
         st.subheader("🎯 Course Progress by School")
 
-        # ==========================
-        # SSBS HOLD INDICATOR
-        # ==========================
-        
-        if normalize_semester_label(semester_label) == "spring 2025/2026":
-        
-            st.markdown(
-                """
-                <style>
-                @keyframes blink {
-                    0% { opacity: 1; }
-                    50% { opacity: 0.35; }
-                    100% { opacity: 1; }
-                }
-        
-                .hold-chip {
-                    display: inline-block;
-                    background: #8B0000;
-                    color: white;
-                    padding: 10px 18px;
-                    border-radius: 999px;
-                    font-weight: 700;
-                    font-size: 15px;
-                    margin-bottom: 18px;
-                    animation: blink 1.2s infinite;
-                    border: 2px solid #ff4d4d;
-                    box-shadow: 0 0 12px rgba(255,77,77,0.45);
-                }
-                </style>
-        
-                <div class="hold-chip">
-                    ⏸ SSBS — ON HOLD FOR SPRING 2025/2026
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-    
-
         schools = df["School"].dropna().unique()
         if len(schools) == 0:
             st.info("No schools found.")
         else:
             cols = st.columns(len(schools))
             for i, school in enumerate(schools):
-
                 with cols[i]:
-            
                     s_df = df[df["School"] == school]
                     avg = s_df["Progress %"].mean()
                     course_count = s_df.shape[0]
-            
-                    # ==========================
-                    # HOLD STATUS FOR SSBS
-                    # ==========================
-            
-                    is_ssbs_hold = (
-                        school == "SSBS"
-                        and normalize_semester_label(semester_label) == "spring 2025/2026"
-                    )
-            
+
                     st.markdown(
                         f"""
-                        <style>
-            
-                        @keyframes pulseHold {{
-                            0% {{
-                                transform: scale(1);
-                                opacity: 1;
-                            }}
-            
-                            50% {{
-                                transform: scale(1.08);
-                                opacity: 0.75;
-                            }}
-            
-                            100% {{
-                                transform: scale(1);
-                                opacity: 1;
-                            }}
-                        }}
-            
-                        </style>
-            
-                        <div style='
-                            position:relative;
-                            text-align:center;
-                            margin-bottom:-10px;
-                        '>
-            
-                            {
-                                "<div style=\"position:absolute; right:8px; top:-6px; background:#8B0000; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:999px; animation:pulseHold 1.3s infinite; box-shadow:0 0 10px rgba(255,0,0,0.45);\">ON HOLD</div>"
-                                if is_ssbs_hold else ""
-                            }
-            
-                            <p style='
-                                font-size:18px;
-                                font-weight:700;
-                                color:white;
-                                margin:0;
-                            '>
-                                {school}
-                            </p>
-            
-                            <p style='
-                                font-size:13px;
-                                color:#cccccc;
-                                margin:0 0 6px 0;
-                            '>
-                                {course_count} Courses
-                            </p>
-            
+                        <div style='text-align:center; margin-bottom:-10px;'>
+                          <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
+                          <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
                         </div>
                         """,
                         unsafe_allow_html=True,
                     )
-            
-                    render_donut_chart(
-                        avg,
-                        key=f"{key_prefix}-donut-{i}-{school}"
-                    )
+                    render_donut_chart(avg, key=f"{key_prefix}-donut-{i}-{school}")
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         overall = df["Progress %"].mean()
@@ -458,35 +359,6 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         )
 
         d1 = df[df["School"] == college].copy()
-        # ==========================
-        # HOLD INDICATOR
-        # ==========================
-        
-        if (
-            normalize_semester_label(semester_label) == "spring 2025/2026"
-            and college == "SSBS"
-        ):
-            st.markdown(
-                """
-                <div style="
-                    background: linear-gradient(90deg, #8B0000, #b22222);
-                    padding: 18px;
-                    border-radius: 14px;
-                    color: white;
-                    margin-bottom: 20px;
-                    border-left: 8px solid #ff4d4d;
-                    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-                ">
-                    <div style="font-size:24px; font-weight:700;">
-                        ⏸ SSBS is Currently On Hold
-                    </div>
-                    <div style="font-size:15px; color:#f0f0f0; margin-top:6px;">
-                        Spring 2025/2026 development activities for SSBS are temporarily paused.
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
         departments = d1["Department"].dropna().unique()
         departments = [d for d in departments if clean_text_value(d) != ""]
