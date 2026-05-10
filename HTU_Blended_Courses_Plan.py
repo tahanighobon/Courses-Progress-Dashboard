@@ -339,34 +339,47 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                         and school == "SSBS"
                     ):
                         hold_badge = """
-                        <div style="
-                            display:inline-block;
-                            background:#8B0000;
-                            color:white;
-                            padding:4px 12px;
-                            border-radius:999px;
-                            font-size:12px;
-                            font-weight:700;
-                            margin-top:8px;
-                            margin-bottom:6px;
-                            animation: pulse 1.5s infinite;
-                            box-shadow:0 0 12px rgba(255,0,0,0.4);
-                        ">
-                            ⏸ ON HOLD
-                        </div>
-            
-                        <style>
-                        @keyframes pulse {
-                            0% { transform: scale(1); opacity: 1; }
-                            50% { transform: scale(1.05); opacity: 0.75; }
-                            100% { transform: scale(1); opacity: 1; }
-                        }
-                        </style>
-                        """
+                        # ==========================
+                        # SSBS HOLD BADGE
+                        # ==========================
+                        hold_badge = ""
+                        
+                        if (
+                            normalize_semester_label(semester_label) == "spring 2025/2026"
+                            and school == "SSBS"
+                        ):
+                            hold_badge = """
+                            <div style="
+                                position:absolute;
+                                top:72px;
+                                left:50%;
+                                transform:translateX(-50%);
+                                z-index:10;
+                                background:#8B0000;
+                                color:white;
+                                padding:5px 14px;
+                                border-radius:999px;
+                                font-size:12px;
+                                font-weight:700;
+                                animation:pulse 1.5s infinite;
+                                box-shadow:0 0 14px rgba(255,0,0,0.45);
+                                white-space:nowrap;
+                            ">
+                                ⏸ ON HOLD
+                            </div>
+                        
+                            <style>
+                            @keyframes pulse {
+                                0% { opacity:1; transform:translateX(-50%) scale(1); }
+                                50% { opacity:0.75; transform:translateX(-50%) scale(1.05); }
+                                100% { opacity:1; transform:translateX(-50%) scale(1); }
+                            }
+                            </style>
+                            """
             
                     st.markdown(
                         f"""
-                        <div style='text-align:center; margin-bottom:-10px;'>
+                        <div style='text-align:center; margin-bottom:-10px; position:relative;'>
                           <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
                           <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
                           {hold_badge}
