@@ -349,7 +349,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                             and school == "SSBS"
                         ):
                             hold_badge = """
-                            <div style="
+                             <div style="
                                 position:absolute;
                                 top:72px;
                                 left:50%;
