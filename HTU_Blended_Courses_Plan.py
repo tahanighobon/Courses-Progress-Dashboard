@@ -360,6 +360,36 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
 
         d1 = df[df["School"] == college].copy()
 
+        # ==========================
+        # HOLD INDICATOR
+        # ==========================
+        
+        if (
+            normalize_semester_label(semester_label) == "spring 2025/2026"
+            and college == "SSBS"
+        ):
+            st.markdown(
+                """
+                <div style="
+                    background: linear-gradient(90deg, #8B0000, #b22222);
+                    padding: 18px;
+                    border-radius: 14px;
+                    color: white;
+                    margin-bottom: 20px;
+                    border-left: 8px solid #ff4d4d;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+                ">
+                    <div style="font-size:24px; font-weight:700;">
+                        ⏸ SSBS is Currently On Hold
+                    </div>
+                    <div style="font-size:15px; color:#f0f0f0; margin-top:6px;">
+                        Spring 2025/2026 development activities for SSBS are temporarily paused.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
         departments = d1["Department"].dropna().unique()
         departments = [d for d in departments if clean_text_value(d) != ""]
         departments = sorted(departments)
