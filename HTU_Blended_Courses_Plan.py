@@ -360,21 +360,82 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         else:
             cols = st.columns(len(schools))
             for i, school in enumerate(schools):
+
                 with cols[i]:
+            
                     s_df = df[df["School"] == school]
                     avg = s_df["Progress %"].mean()
                     course_count = s_df.shape[0]
-
+            
+                    # ==========================
+                    # HOLD STATUS FOR SSBS
+                    # ==========================
+            
+                    is_ssbs_hold = (
+                        school == "SSBS"
+                        and normalize_semester_label(semester_label) == "spring 2025/2026"
+                    )
+            
                     st.markdown(
                         f"""
-                        <div style='text-align:center; margin-bottom:-10px;'>
-                          <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
-                          <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
+                        <style>
+            
+                        @keyframes pulseHold {{
+                            0% {{
+                                transform: scale(1);
+                                opacity: 1;
+                            }}
+            
+                            50% {{
+                                transform: scale(1.08);
+                                opacity: 0.75;
+                            }}
+            
+                            100% {{
+                                transform: scale(1);
+                                opacity: 1;
+                            }}
+                        }}
+            
+                        </style>
+            
+                        <div style='
+                            position:relative;
+                            text-align:center;
+                            margin-bottom:-10px;
+                        '>
+            
+                            {
+                                "<div style=\"position:absolute; right:8px; top:-6px; background:#8B0000; color:white; font-size:10px; font-weight:700; padding:4px 10px; border-radius:999px; animation:pulseHold 1.3s infinite; box-shadow:0 0 10px rgba(255,0,0,0.45);\">ON HOLD</div>"
+                                if is_ssbs_hold else ""
+                            }
+            
+                            <p style='
+                                font-size:18px;
+                                font-weight:700;
+                                color:white;
+                                margin:0;
+                            '>
+                                {school}
+                            </p>
+            
+                            <p style='
+                                font-size:13px;
+                                color:#cccccc;
+                                margin:0 0 6px 0;
+                            '>
+                                {course_count} Courses
+                            </p>
+            
                         </div>
                         """,
                         unsafe_allow_html=True,
                     )
-                    render_donut_chart(avg, key=f"{key_prefix}-donut-{i}-{school}")
+            
+                    render_donut_chart(
+                        avg,
+                        key=f"{key_prefix}-donut-{i}-{school}"
+                    )
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         overall = df["Progress %"].mean()
