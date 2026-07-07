@@ -234,17 +234,18 @@ def render_school_status_box(semester_key: str, school: str):
                     border:1px solid rgba(255,120,120,0.85);
                     border-left:5px solid #ff4d4d;
                     border-radius:10px;
-                    padding:10px 14px;
+                    padding:8px 12px;
                     color:white;
-                    box-shadow:0 0 16px rgba(208,69,70,0.55);
+                    box-shadow:0 4px 12px rgba(0,0,0,0.25);
                     font-size:13px;
                     line-height:1.45;
                     display:inline-block;
                     width:fit-content;
-                    text-align:left;
+                    min-width:175px;
+                    text-align:center;
                 ">
                     <div style="
-                        font-weight:800;
+                        font-weight:700;
                         font-size:14px;
                         color:#ffdddd;
                         text-shadow:0 0 8px rgba(255,120,120,0.85);
