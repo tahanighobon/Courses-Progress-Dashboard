@@ -163,6 +163,153 @@ def normalize_semester_label(s: str) -> str:
 
 
 # ==========================
+# Manual School Status Numbers
+# ==========================
+# Replace the dummy numbers below with your real numbers later.
+# The keys should match the normalized semester labels and school names in your sheet.
+SCHOOL_STATUS_COUNTS = {
+    "spring 2024/2025": {
+        "SCI": {"Planned to develop": 10, "Developed": 6, "Canceled": 1, "Not completed": 3},
+        "SET": {"Planned to develop": 12, "Developed": 7, "Canceled": 0, "Not completed": 5},
+        "SBEE": {"Planned to develop": 8, "Developed": 4, "Canceled": 1, "Not completed": 3},
+        "SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 0, "Not completed": 4},
+    },
+    "fall 2025/2026": {
+        "SCI": {"Planned to develop": 10, "Developed": 5, "Canceled": 1, "Not completed": 4},
+        "SET": {"Planned to develop": 12, "Developed": 6, "Canceled": 1, "Not completed": 5},
+        "SBEE": {"Planned to develop": 9, "Developed": 5, "Canceled": 0, "Not completed": 4},
+        "SSBS": {"Planned to develop": 8, "Developed": 4, "Canceled": 1, "Not completed": 3},
+    },
+    "spring 2025/2026": {
+        "SCI": {"Planned to develop": 10, "Developed": 7, "Canceled": 0, "Not completed": 3},
+        "SET": {"Planned to develop": 12, "Developed": 6, "Canceled": 1, "Not completed": 5},
+        "SBEE": {"Planned to develop": 8, "Developed": 4, "Canceled": 0, "Not completed": 4},
+        "SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 1, "Not completed": 3},
+    },
+}
+
+SEMESTER_ORDER = [
+    "spring 2024/2025",
+    "fall 2025/2026",
+    "spring 2025/2026",
+]
+
+
+def normalize_course_name(name: str) -> str:
+    n = clean_text_value(name).lower()
+    n = n.replace("\u00a0", " ")
+    n = n.replace("&", "and")
+    n = re.sub(r"[^a-z0-9\s]", " ", n)
+    n = re.sub(r"\s+", " ", n).strip()
+    return n
+
+
+def get_previous_semester_key(current_semester_key: str):
+    if current_semester_key not in SEMESTER_ORDER:
+        return None
+    idx = SEMESTER_ORDER.index(current_semester_key)
+    if idx == 0:
+        return None
+    return SEMESTER_ORDER[idx - 1]
+
+
+def is_course_deferred_from_previous_semester(df_all: pd.DataFrame, current_semester_key: str, course_name: str) -> bool:
+    previous_key = get_previous_semester_key(current_semester_key)
+    if previous_key is None:
+        return False
+
+    current_course_key = normalize_course_name(course_name)
+    previous_courses = df_all[df_all["__semester_key__"] == previous_key]["Course \ pathway"].apply(normalize_course_name)
+    return current_course_key in set(previous_courses)
+
+
+def render_school_status_box(semester_key: str, school: str):
+    values = SCHOOL_STATUS_COUNTS.get(semester_key, {}).get(
+        school,
+        {"Planned to develop": 0, "Developed": 0, "Canceled": 0, "Not completed": 0},
+    )
+
+    st.markdown(
+        f"""
+        <div style="
+            background:#202020;
+            border:1px solid rgba(255,255,255,0.12);
+            border-left:5px solid #d04546;
+            border-radius:14px;
+            padding:12px 14px;
+            margin-top:10px;
+            color:white;
+            box-shadow:0 4px 12px rgba(0,0,0,0.25);
+            font-size:14px;
+            line-height:1.7;
+        ">
+            <div style="font-weight:800; font-size:15px; margin-bottom:6px; color:#ffffff;">School Status</div>
+            <div>📌 <b>Planned to develop:</b> {values.get('Planned to develop', 0)}</div>
+            <div>✅ <b>Developed:</b> {values.get('Developed', 0)}</div>
+            <div>❌ <b>Canceled:</b> {values.get('Canceled', 0)}</div>
+            <div>⚠️ <b>Not completed:</b> {values.get('Not completed', 0)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_glowy_note(title: str, body: str, icon: str = "📝"):
+    body = clean_text_value(body)
+    if not body:
+        return
+
+    st.markdown(
+        f"""
+        <div style="
+            background:linear-gradient(135deg, rgba(208,69,70,0.24), rgba(255,255,255,0.07));
+            border:1px solid rgba(255,115,115,0.75);
+            border-left:8px solid #d04546;
+            border-radius:16px;
+            padding:16px 18px;
+            margin:12px 0;
+            color:white;
+            box-shadow:0 0 18px rgba(208,69,70,0.55);
+        ">
+            <div style="font-size:19px; font-weight:900; color:#ffdddd; text-shadow:0 0 10px rgba(255,120,120,0.85); margin-bottom:8px;">
+                {icon} {title}
+            </div>
+            <div style="font-size:15px; font-weight:600; line-height:1.6; color:#ffffff;">
+                {body}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_deferred_course_notice(previous_semester_label: str):
+    st.markdown(
+        f"""
+        <div style="
+            background:linear-gradient(90deg, rgba(255,193,7,0.22), rgba(208,69,70,0.18));
+            border:1px solid rgba(255,193,7,0.8);
+            border-left:8px solid #ffc107;
+            border-radius:16px;
+            padding:15px 18px;
+            margin:12px 0 18px 0;
+            color:white;
+            box-shadow:0 0 16px rgba(255,193,7,0.35);
+        ">
+            <div style="font-size:18px; font-weight:900; color:#fff3cd; margin-bottom:5px;">
+                ⚠️ Deferred Course Notice
+            </div>
+            <div style="font-size:15px; font-weight:650; line-height:1.6;">
+                This course appears in the previous semester as well.
+                <br>تم تأجيل هذا الكورس من الفصل الماضي ({previous_semester_label}).
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ==========================
 # Load Courses Data
 # ==========================
 
@@ -338,6 +485,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                         unsafe_allow_html=True,
                     )
                     render_donut_chart(avg, key=f"{key_prefix}-donut-{i}-{school}")
+                    render_school_status_box(target_semester, school)
 
         st.markdown("<br><br>", unsafe_allow_html=True)
         overall = df["Progress %"].mean()
@@ -475,6 +623,15 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         st.write(f"👨‍🏫 Dean: {dean_name if dean_name else '—'}")
         st.write(f"📝 SMEs: {smes_name if smes_name else '—'}")
         st.write(f"🎯 Instructional Designer: {id_name if id_name else '—'}")
+
+        if is_course_deferred_from_previous_semester(df_all, target_semester, course):
+            previous_key = get_previous_semester_key(target_semester)
+            previous_label = previous_key.title() if previous_key else "the previous semester"
+            render_deferred_course_notice(previous_label)
+
+        course_note = clean_text_value(row.get("Notes", ""))
+        if course_note:
+            render_glowy_note("Course Notes", course_note, icon="📌")
 
         tasks = ["Detailed Outline"] + [f"Block {i}" for i in range(1, 16)]
         df_tasks = pd.DataFrame(
@@ -807,7 +964,11 @@ elif page == "🏫 Instructors":
                             .reset_index(drop=True)
                         )
                         for _, item in notes_df.iterrows():
-                            st.markdown(f"• **{item['Semester']} — {item['Course']}**: {item['Notes']}")
+                            render_glowy_note(
+                                f"{item['Semester']} — {item['Course']}",
+                                item["Notes"],
+                                icon="💡",
+                            )
 
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.subheader("TLC Sessions Progress")
