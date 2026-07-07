@@ -184,7 +184,7 @@ SCHOOL_STATUS_COUNTS = {
         "SCI": {"Planned to develop": 10, "Developed": 7, "Canceled": 0, "Not completed": 3},
         "SET": {"Planned to develop": 12, "Developed": 6, "Canceled": 1, "Not completed": 5},
         "SBEE": {"Planned to develop": 8, "Developed": 4, "Canceled": 0, "Not completed": 4},
-        "SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 1, "Not completed": 3},
+        "SSBS": {"SSBS is Currently On Hold"},
     },
 }
 
