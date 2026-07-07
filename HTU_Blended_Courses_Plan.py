@@ -225,7 +225,7 @@ def is_course_deferred_from_previous_semester(df_all: pd.DataFrame, current_seme
 
 def render_school_status_box(semester_key: str, school: str):
     # Special display for SSBS when it is on hold
-    if school == "SSBS":
+    if school == "SSBS" and semester_key == "spring 2025/2026":
         st.markdown(
             """
             <div style="text-align:center; margin-top:6px;">
