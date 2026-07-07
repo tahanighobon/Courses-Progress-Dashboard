@@ -231,25 +231,27 @@ def render_school_status_box(semester_key: str, school: str):
 
     st.markdown(
         f"""
-        <div style="
-            background:#202020;
-            border:1px solid rgba(255,255,255,0.12);
-            border-left:5px solid #d04546;
-            border-radius:10px;
-            padding:8px 12px;
-            margin-top:6px;
-            color:white;
-            box-shadow:0 4px 12px rgba(0,0,0,0.25);
-            font-size:13px;
-            line-height:1.45;
-            display:inline-block;
-            width:fit-content;
-        ">
-            <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:#ffffff;">School Status</div>
-            <div>📌 <b>Planned to develop:</b> {values.get('Planned to develop', 0)}</div>
-            <div>✅ <b>Developed:</b> {values.get('Developed', 0)}</div>
-            <div>❌ <b>Canceled:</b> {values.get('Canceled', 0)}</div>
-            <div>⚠️ <b>Not completed:</b> {values.get('Not completed', 0)}</div>
+        <div style="text-align:center; margin-top:6px;">
+            <div style="
+                background:#202020;
+                border:1px solid rgba(255,255,255,0.12);
+                border-left:5px solid #d04546;
+                border-radius:10px;
+                padding:8px 12px;
+                color:white;
+                box-shadow:0 4px 12px rgba(0,0,0,0.25);
+                font-size:13px;
+                line-height:1.45;
+                display:inline-block;
+                width:fit-content;
+                text-align:left;
+            ">
+                <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:#ffffff;">School Status</div>
+                <div>📌 <b>Planned to develop:</b> {values.get('Planned to develop', 0)}</div>
+                <div>✅ <b>Developed:</b> {values.get('Developed', 0)}</div>
+                <div>❌ <b>Canceled:</b> {values.get('Canceled', 0)}</div>
+                <div>⚠️ <b>Not completed:</b> {values.get('Not completed', 0)}</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
