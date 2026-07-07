@@ -224,6 +224,40 @@ def is_course_deferred_from_previous_semester(df_all: pd.DataFrame, current_seme
 
 
 def render_school_status_box(semester_key: str, school: str):
+    # Special display for SSBS when it is on hold
+    if school == "SSBS":
+        st.markdown(
+            """
+            <div style="text-align:center; margin-top:6px;">
+                <div style="
+                    background:linear-gradient(135deg, rgba(139,0,0,0.65), rgba(208,69,70,0.35));
+                    border:1px solid rgba(255,120,120,0.85);
+                    border-left:5px solid #ff4d4d;
+                    border-radius:10px;
+                    padding:10px 14px;
+                    color:white;
+                    box-shadow:0 0 16px rgba(208,69,70,0.55);
+                    font-size:13px;
+                    line-height:1.45;
+                    display:inline-block;
+                    width:fit-content;
+                    text-align:left;
+                ">
+                    <div style="
+                        font-weight:800;
+                        font-size:14px;
+                        color:#ffdddd;
+                        text-shadow:0 0 8px rgba(255,120,120,0.85);
+                    ">
+                        ⏸ SSBS is Currently On Hold
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        return
+
     values = SCHOOL_STATUS_COUNTS.get(semester_key, {}).get(
         school,
         {"Planned to develop": 0, "Developed": 0, "Canceled": 0, "Not completed": 0},
