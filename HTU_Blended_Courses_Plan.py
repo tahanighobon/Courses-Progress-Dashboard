@@ -304,7 +304,6 @@ def render_deferred_course_notice(previous_semester_label: str):
                 ⚠️ Deferred Course Notice
             </div>
             <div style="font-size:15px; font-weight:650; line-height:1.6;">
-                This course appears in the previous semester as well.
                 <br>This course has been postponed from the previous semester ({previous_semester_label}).
             </div>
         </div>
