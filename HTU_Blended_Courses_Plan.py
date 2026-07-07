@@ -184,7 +184,7 @@ SCHOOL_STATUS_COUNTS = {
         "SCI": {"Planned to develop": 10, "Developed": 7, "Canceled": 0, "Not completed": 3},
         "SET": {"Planned to develop": 12, "Developed": 6, "Canceled": 1, "Not completed": 5},
         "SBEE": {"Planned to develop": 8, "Developed": 4, "Canceled": 0, "Not completed": 4},
-        "SSBS": {"SSBS is Currently On Hold"},
+        "SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 1, "Not completed": 3},
     },
 }
 
@@ -304,6 +304,7 @@ def render_deferred_course_notice(previous_semester_label: str):
                 ⚠️ Deferred Course Notice
             </div>
             <div style="font-size:15px; font-weight:650; line-height:1.6;">
+                This course appears in the previous semester as well.
                 <br>This course has been postponed from the previous semester ({previous_semester_label}).
             </div>
         </div>
