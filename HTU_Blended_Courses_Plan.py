@@ -230,7 +230,7 @@ def is_course_deferred_from_previous_semester(df_all: pd.DataFrame, current_seme
         return False
 
     current_course_key = normalize_course_name(course_name)
-    previous_courses = df_all[df_all["__semester_key__"] == previous_key]["Course \ pathway"].apply(normalize_course_name)
+    previous_courses = df_all[df_all["__semester_key__"] == previous_key]["Course \\ pathway"].apply(normalize_course_name)
     return current_course_key in set(previous_courses)
 
 
@@ -332,7 +332,7 @@ def render_glowy_note(title: str, body: str, icon: str = "📝"):
     )
 
 
-def render_deferred_course_notice(previous_semester_label: str):
+def render_deferred_course_notice(previous_semester_label: str, current_semester_label: str):
     st.markdown(
         f"""
         <div style="
@@ -349,7 +349,7 @@ def render_deferred_course_notice(previous_semester_label: str):
                 ⚠️ Postponed Course Notice
             </div>
             <div style="font-size:15px; font-weight:650; line-height:1.6;">
-                <br>This course has been postponed from the previous semester ({previous_semester_label}).
+                This course was initiated during {previous_semester_label}, and its development has continued during {current_semester_label}.
             </div>
         </div>
         """,
@@ -702,7 +702,8 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         if is_course_deferred_from_previous_semester(df_all, target_semester, course):
             previous_key = get_previous_semester_key(target_semester)
             previous_label = previous_key.title() if previous_key else "the previous semester"
-            render_deferred_course_notice(previous_label)
+            current_label = target_semester.title()
+            render_deferred_course_notice(previous_label, current_label)
 
         course_note = clean_text_value(row.get("Notes", ""))
         if course_note:
