@@ -195,8 +195,8 @@ SCHOOL_STATUS_COUNTS = {
 # Replace these dummy numbers with the correct numbers later.
 SEMESTER_DEVELOPED_COUNTS = {
     "spring 2024/2025": 20,
-    "fall 2025/2026": 12,
-    "spring 2025/2026": 14,
+    "fall 2025/2026": 3,
+    "spring 2025/2026": 9,
 }
 
 SEMESTER_ORDER = [
