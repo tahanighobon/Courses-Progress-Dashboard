@@ -169,10 +169,10 @@ def normalize_semester_label(s: str) -> str:
 # The keys should match the normalized semester labels and school names in your sheet.
 SCHOOL_STATUS_COUNTS = {
     "spring 2024/2025": {
-        "SCI": {"Planned to develop": 10, "Developed": 6, "Canceled": 1, "Not completed": 3},
-        "SET": {"Planned to develop": 12, "Developed": 7, "Canceled": 0, "Not completed": 5},
-        "SBEE": {"Planned to develop": 8, "Developed": 4, "Canceled": 1, "Not completed": 3},
-        "SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 0, "Not completed": 4},
+        "SCI": {"Planned to develop": 6, "Developed": 6, "Canceled": 0, "Not completed": 0},
+        "SET": {"Planned to develop": 6, "Developed": 5, "Canceled": 1, "Not completed": 0},
+        "SBEE": {"Planned to develop": 8, "Developed": 2, "Canceled": 6, "Not completed": 0},
+        "SSBS": {"Planned to develop": 9, "Developed": 7, "Canceled": 2, "Not completed": 0},
     },
     "fall 2025/2026": {
         "SCI": {"Planned to develop": 10, "Developed": 5, "Canceled": 1, "Not completed": 4},
@@ -181,9 +181,9 @@ SCHOOL_STATUS_COUNTS = {
         "SSBS": {"Planned to develop": 8, "Developed": 4, "Canceled": 1, "Not completed": 3},
     },
     "spring 2025/2026": {
-        "SCI": {"Planned to develop": 10, "Developed": 7, "Canceled": 0, "Not completed": 3},
-        "SET": {"Planned to develop": 12, "Developed": 6, "Canceled": 1, "Not completed": 5},
-        "SBEE": {"Planned to develop": 8, "Developed": 4, "Canceled": 0, "Not completed": 4},
+        "SCI": {"Planned to develop": 9, "Developed": 5, "Canceled": 2, "Not completed": 2},
+        "SET": {"Planned to develop": 11, "Developed": 2, "Canceled": 3, "Not completed": 6},
+        "SBEE": {"Planned to develop": 7, "Developed": 2, "Canceled": 2, "Not completed": 3},
         "SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 1, "Not completed": 3},
     },
 }
