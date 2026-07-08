@@ -376,12 +376,14 @@ if view == "Overview":
                 s_df = df[df["School"] == school]
                 avg = s_df["Progress %"].mean()
                 course_count = s_df.shape[0]
+                developed_count = SCHOOL_STATUS_COUNTS.get(target_semester, {}).get(school, {}).get('Developed', 0)
 
                 st.markdown(
                     f"""
                     <div style='text-align:center; margin-bottom:-10px;'>
                       <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
-                      <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
+                      <p style='font-size:13px; color:#cccccc; margin:0;'>{course_count} Courses</p>
+                      <p style='font-size:13px; color:#9fd6a3; margin:2px 0 6px 0;'>✅ {developed_count} Developed</p>
                     </div>
                     """,
                     unsafe_allow_html=True,
