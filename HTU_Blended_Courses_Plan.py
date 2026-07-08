@@ -778,15 +778,16 @@ page = st.sidebar.radio(
         "🏠 Home",
         "🔎 Search",
         "🏫 Instructors",
-        "🌱 Spring 2024/2025",
-        "🍂 Fall 2025/2026",
-        "🌸 Spring 2025/2026",
+        "🌱 Spring 2024/2025 – Overview",
+        "🌱 Spring 2024/2025 – Schools",
+        "🍂 Fall 2025/2026 – Overview",
+        "🍂 Fall 2025/2026 – Schools",
+        "🌸 Spring 2025/2026 – Overview",
+        "🌸 Spring 2025/2026 – Schools",
     ]
 )
 
 view = None
-if page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026", "🌸 Spring 2025/2026"]:
-    view = st.sidebar.radio("View", ["Overview", "Schools"])
 
 
 # ==========================
@@ -1058,14 +1059,23 @@ elif page == "🏫 Instructors":
 # SEMESTER PAGES
 # ==========================
 
-elif page == "🌱 Spring 2024/2025":
-    render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
+elif page == "🌱 Spring 2024/2025 – Overview":
+    render_semester_page(df_all, "Spring 2024/2025", "Overview", "spring2425_overview")
 
-elif page == "🍂 Fall 2025/2026":
-    render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
+elif page == "🌱 Spring 2024/2025 – Schools":
+    render_semester_page(df_all, "Spring 2024/2025", "Schools", "spring2425_schools")
 
-elif page == "🌸 Spring 2025/2026":
-    render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
+elif page == "🍂 Fall 2025/2026 – Overview":
+    render_semester_page(df_all, "Fall 2025/2026", "Overview", "fall2526_overview")
+
+elif page == "🍂 Fall 2025/2026 – Schools":
+    render_semester_page(df_all, "Fall 2025/2026", "Schools", "fall2526_schools")
+
+elif page == "🌸 Spring 2025/2026 – Overview":
+    render_semester_page(df_all, "Spring 2025/2026", "Overview", "spring2526_overview")
+
+elif page == "🌸 Spring 2025/2026 – Schools":
+    render_semester_page(df_all, "Spring 2025/2026", "Schools", "spring2526_schools")
 
 
 # ==========================
