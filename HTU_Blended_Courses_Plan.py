@@ -205,111 +205,6 @@ SEMESTER_ORDER = [
     "spring 2025/2026",
 ]
 
-# ==========================
-# URL Pages
-# ==========================
-# These keys create shareable links such as:
-# ?page=spring-2024-2025
-# ?page=fall-2025-2026
-# ?page=spring-2025-2026
-PAGE_CONFIG = {
-    "home": {
-        "label": "🏠 Home",
-        "title": "Home",
-        "semester_label": None,
-        "view": None,
-        "key_prefix": "home",
-    },
-    "search": {
-        "label": "🔎 Search",
-        "title": "Search",
-        "semester_label": None,
-        "view": None,
-        "key_prefix": "search",
-    },
-    "instructors": {
-        "label": "🏫 Instructors",
-        "title": "Instructors",
-        "semester_label": None,
-        "view": None,
-        "key_prefix": "instructors",
-    },
-    "spring-2024-2025": {
-        "label": "🌱 Spring 2024/2025",
-        "title": "Spring 2024/2025",
-        "semester_label": "Spring 2024/2025",
-        "view": "Overview",
-        "key_prefix": "spring2425",
-    },
-    "fall-2025-2026": {
-        "label": "🍂 Fall 2025/2026",
-        "title": "Fall 2025/2026",
-        "semester_label": "Fall 2025/2026",
-        "view": "Overview",
-        "key_prefix": "fall2526",
-    },
-    "spring-2025-2026": {
-        "label": "🌸 Spring 2025/2026",
-        "title": "Spring 2025/2026",
-        "semester_label": "Spring 2025/2026",
-        "view": "Overview",
-        "key_prefix": "spring2526",
-    },
-}
-
-
-def get_url_page_key() -> str:
-    try:
-        page_value = st.query_params.get("page", "home")
-    except Exception:
-        page_value = "home"
-
-    if isinstance(page_value, list):
-        page_value = page_value[0] if page_value else "home"
-
-    page_value = str(page_value).strip()
-    return page_value if page_value in PAGE_CONFIG else "home"
-
-
-def render_page_links():
-    st.markdown("### Semester Pages")
-
-    links = [
-        ("🌱 Spring 2024/2025", "?page=spring-2024-2025"),
-        ("🍂 Fall 2025/2026", "?page=fall-2025-2026"),
-        ("🌸 Spring 2025/2026", "?page=spring-2025-2026"),
-    ]
-
-    cols = st.columns(3)
-    for col, (title, url) in zip(cols, links):
-        with col:
-            st.markdown(
-                f"""
-                <a href="{url}" target="_self" style="text-decoration:none;">
-                    <div style="
-                        background:#202020;
-                        border:1px solid rgba(255,255,255,0.12);
-                        border-left:6px solid #d04546;
-                        border-radius:14px;
-                        padding:18px 20px;
-                        color:white;
-                        box-shadow:0 4px 12px rgba(0,0,0,0.25);
-                        text-align:center;
-                        font-size:18px;
-                        font-weight:800;
-                    ">
-                        {title}
-                        <div style="font-size:13px; color:#cccccc; font-weight:500; margin-top:6px;">
-                            Open shareable semester page
-                        </div>
-                    </div>
-                </a>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
 
 def normalize_course_name(name: str) -> str:
     n = clean_text_value(name).lower()
@@ -915,32 +810,21 @@ except Exception:
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
-current_page_key = get_url_page_key()
-current_page = PAGE_CONFIG[current_page_key]
+page = st.sidebar.radio(
+    "Go to",
+    [
+        "🏠 Home",
+        "🔎 Search",
+        "🏫 Instructors",
+        "🌱 Spring 2024/2025",
+        "🍂 Fall 2025/2026",
+        "🌸 Spring 2025/2026",
+    ]
+)
 
-st.sidebar.markdown("### Navigation")
-for key, config in PAGE_CONFIG.items():
-    active_style = "background:#d04546;color:white;" if key == current_page_key else "background:#202020;color:#dddddd;"
-    st.sidebar.markdown(
-        f"""
-        <a href="?page={key}" target="_self" style="text-decoration:none;">
-            <div style="
-                {active_style}
-                padding:10px 12px;
-                border-radius:10px;
-                margin-bottom:6px;
-                font-weight:700;
-                border:1px solid rgba(255,255,255,0.12);
-            ">
-                {config['label']}
-            </div>
-        </a>
-        """,
-        unsafe_allow_html=True,
-    )
-
-page = current_page_key
-view = current_page.get("view")
+view = None
+if page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026", "🌸 Spring 2025/2026"]:
+    view = st.sidebar.radio("View", ["Overview", "Schools"])
 
 
 # ==========================
@@ -967,7 +851,7 @@ df_tlc = load_tlc_sessions()
 # HOME PAGE
 # ==========================
 
-if page == "home":
+if page == "🏠 Home":
     summary = [
         {"school": "SCI", "total": 37, "ready": 8},
         {"school": "SET", "total": 69, "ready": 9},
@@ -983,8 +867,6 @@ if page == "home":
     total_pct = 0 if total_courses == 0 else round(total_ready / total_courses * 100, 1)
 
     st.markdown("<h3 style='text-align:center;'>University Snapshot</h3>", unsafe_allow_html=True)
-
-    render_page_links()
 
     total_col = st.columns([1, 2, 1])
     with total_col[1]:
@@ -1044,7 +926,7 @@ if page == "home":
 # SEARCH TAB
 # ==========================
 
-elif page == "search":
+elif page == "🔎 Search":
     render_search_page(df_all)
 
 
@@ -1052,7 +934,7 @@ elif page == "search":
 # INSTRUCTORS TAB
 # ==========================
 
-elif page == "instructors":
+elif page == "🏫 Instructors":
     st.subheader("Instructors")
 
     school_options = sorted(df_all["School"].dropna().unique())
@@ -1214,13 +1096,14 @@ elif page == "instructors":
 # SEMESTER PAGES
 # ==========================
 
-elif page in ["spring-2024-2025", "fall-2025-2026", "spring-2025-2026"]:
-    render_semester_page(
-        df_all,
-        current_page["semester_label"],
-        current_page["view"],
-        current_page["key_prefix"],
-    )
+elif page == "🌱 Spring 2024/2025":
+    render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
+
+elif page == "🍂 Fall 2025/2026":
+    render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
+
+elif page == "🌸 Spring 2025/2026":
+    render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
 
 
 # ==========================
