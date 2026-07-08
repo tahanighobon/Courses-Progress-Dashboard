@@ -194,9 +194,9 @@ SCHOOL_STATUS_COUNTS = {
 # ==========================
 # Replace these dummy numbers with the correct numbers later.
 SEMESTER_DEVELOPED_COUNTS = {
-    "spring 2024/2025": 20,
-    "fall 2025/2026": 3,
-    "spring 2025/2026": 9,
+    "spring 2024/2025": {"developed": 20, "total": 24},
+    "fall 2025/2026": {"developed": 3, "total": 18},
+    "spring 2025/2026": {"developed": 9, "total": 16},
 }
 
 SEMESTER_ORDER = [
@@ -539,7 +539,11 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         overall = df["Progress %"].mean()
         st.subheader(f"Overall University Progress ({semester_label})")
 
-        developed_courses_total = SEMESTER_DEVELOPED_COUNTS.get(target_semester, 0)
+        semester_stats = SEMESTER_DEVELOPED_COUNTS.get(
+            target_semester, {"developed": 0, "total": 0}
+        )
+        developed_courses_total = semester_stats["developed"]
+        total_courses_target = semester_stats["total"]
         st.markdown(
             f"""
             <div style="
@@ -555,7 +559,7 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                 display:inline-block;
                 margin-bottom:14px;
             ">
-                ✅ <b>Developed Courses This Semester:</b> {developed_courses_total}
+                ✅ <b>Developed Courses This Semester:</b> {developed_courses_total} <span style="color:#cfcfcf;font-weight:500;">out of {total_courses_target}</span>
             </div>
             """,
             unsafe_allow_html=True,
