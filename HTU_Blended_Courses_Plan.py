@@ -188,6 +188,17 @@ SCHOOL_STATUS_COUNTS = {
     },
 }
 
+
+# ==========================
+# Manual Semester Developed Counts
+# ==========================
+# Replace these dummy numbers with the correct numbers later.
+SEMESTER_DEVELOPED_COUNTS = {
+    "spring 2024/2025": 20,
+    "fall 2025/2026": 12,
+    "spring 2025/2026": 14,
+}
+
 SEMESTER_ORDER = [
     "spring 2024/2025",
     "fall 2025/2026",
@@ -511,14 +522,12 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
                     s_df = df[df["School"] == school]
                     avg = s_df["Progress %"].mean()
                     course_count = s_df.shape[0]
-                    developed_count = SCHOOL_STATUS_COUNTS.get(target_semester, {}).get(school, {}).get("Developed", 0)
 
                     st.markdown(
                         f"""
                         <div style='text-align:center; margin-bottom:-10px;'>
                           <p style='font-size:18px; font-weight:700; color:white; margin:0;'>{school}</p>
-                          <p style='font-size:13px; color:#cccccc; margin:0;'>{course_count} Courses</p>
-                          <p style='font-size:13px; color:#9fd6a3; margin:2px 0 6px 0;'>✅ {developed_count} Developed</p>
+                          <p style='font-size:13px; color:#cccccc; margin:0 0 6px 0;'>{course_count} Courses</p>
                         </div>
                         """,
                         unsafe_allow_html=True,
@@ -531,6 +540,29 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         st.subheader(f"Overall University Progress ({semester_label})")
         st.progress(int(0 if pd.isna(overall) else overall))
         st.write(f"Overall Completion: {0 if pd.isna(overall) else overall:.1f}%")
+
+        developed_courses_total = SEMESTER_DEVELOPED_COUNTS.get(target_semester, 0)
+        st.markdown(
+            f"""
+            <div style="
+                background:#202020;
+                border:1px solid rgba(255,255,255,0.12);
+                border-left:5px solid #d04546;
+                border-radius:10px;
+                padding:10px 14px;
+                color:white;
+                box-shadow:0 4px 12px rgba(0,0,0,0.25);
+                font-size:14px;
+                line-height:1.5;
+                display:inline-block;
+                width:fit-content;
+                margin-top:8px;
+            ">
+                ✅ <b>Developed courses this semester:</b> {developed_courses_total}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     else:
         st.subheader(f"{semester_label} – Schools")
