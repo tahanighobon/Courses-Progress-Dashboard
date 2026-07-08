@@ -1,148 +1,32 @@
-ChatGPT
-
-
-
-
-
-Pasted text.txt
-Document
-
-Pasted text (2).txt
-Document
-i wrote this code:
-
-
-and its work very good but i want you to make the folloing modification
-1.  i want in each semseter under the pie chart of each school to add a box contain three lines:
- -- Planned to develop
--- developed
--- cancled
--- not completed
-****i will enter them manually .. put a dummy numbers for now i will put them correctly later***
-
-2. In the instructor section .. i added a Notes Section .. i want you to make this not in a glowy very obvious font and color + add the same section in the courses section that related to the notes
-
-3. If a course exist in a semsetr .. then the same course exist in the next semeseter add a clear not in the course section indicate that .. انه الكورس تم تاجيله من الفصل الماضي
-
-the code read 5 sheets .. i attched the main sheet for your refrence
-
-please write the entire code to me
-
-
-Pasted text(1).txt
-Document
-i will use this code its amazing keep everything the same just make the following single modification see the image of the pie chart with the rectangle under it .. the size of the rectangle is large make it smaller to be as the size of text only
-
-put it under the pie chart exactly
-
-df2cb536-9c2b-455f-80d6-d016e2ca5eaa.png
-amazing keep everything the same .. just for SSBS  instead of School Status
-📌 Planned to develop: 9
-✅ Developed: 5
-❌ Canceled: 1
-⚠️ Not completed: 3
-
-Write  ⏸ SSBS is Currently On Hold  in a distinguis color 
-
-good just make the size of the box of ⏸ SSBS is Currently On Hold
-the same as the size of the box of School Status .. and put the text in the middle
-
-Creating image
-
-not image generate the entire code
-
-Done! I updated the SSBS "On Hold" box to:
-
-✅ Match the School Status box size.
-
-✅ Center the text horizontally.
-
-✅ Keep the same compact appearance and styling.
-
-✅ Leave everything else unchanged.
-
-You can download the updated file here:
-
-📥 htu_digital_twin_dashboard_ssbs_on_hold_centered.py 
-
-
-
-Pasted text(2).txt
-Document
-i am using this code:
-but i want the status of ssbs that it is on hold .. only on spring 2025/2026 but the other semester keep it as normal
-
-Thought for 4s
-Done.
-
-Download the updated .py file 
-
-
-
-Pasted text(3).txt
-Document
-i wrote this code:
-can you make the semesters as pages rather than side filters
-
-Thought for 12s
-Done.
-
-Download the updated .py file 
-
-
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import re
+import streamlit as stimport pandas as pdimport numpy as npimport plotly.graph_objects as goimport re
 
 st.set_page_config(layout="wide")
 
 ===========================
+
 URLs
+
 ===========================
+
 ===========================
+
 DATA_URL = "https://docs.google.com/spreadsheets/d/1EL31srR2r_CXmSXEjGprdWCH3HByT5HLGFlsEhImBBM/gviz/tq?tqx=out:csv&sheet=2013"
 
-TLC_SHEETS = [
-"https://docs.google.com/spreadsheets/d/1y7mPQzNxkGXMKqBVEk1X_icALvotanOkL3HL885sMAY/gviz/tq?tqx=out&gid=0",
-"https://docs.google.com/spreadsheets/d/1Ksh_5KUAyuE_H_rJkf0vDRvSKJxvyt2sYSzDgLwR5Nw/gviz/tq?tqx=out&gid=0",
-"https://docs.google.com/spreadsheets/d/1bRHPX7vvU49A0Q_WzaKhNwhjqS9ketpEJKU64GLSIuM/gviz/tq?tqx=out&gid=0",
-"https://docs.google.com/spreadsheets/d/1B5o0uBdFrR-pGT9dxStLorAgWx3XUYyN6I-yiBZlMcc/gviz/tq?tqx=out&gid=0",
-]
+TLC_SHEETS = ["https://docs.google.com/spreadsheets/d/1y7mPQzNxkGXMKqBVEk1X_icALvotanOkL3HL885sMAY/gviz/tq?tqx=out&gid=0","https://docs.google.com/spreadsheets/d/1Ksh_5KUAyuE_H_rJkf0vDRvSKJxvyt2sYSzDgLwR5Nw/gviz/tq?tqx=out&gid=0","https://docs.google.com/spreadsheets/d/1bRHPX7vvU49A0Q_WzaKhNwhjqS9ketpEJKU64GLSIuM/gviz/tq?tqx=out&gid=0","https://docs.google.com/spreadsheets/d/1B5o0uBdFrR-pGT9dxStLorAgWx3XUYyN6I-yiBZlMcc/gviz/tq?tqx=out&gid=0",]
 
 ==========================
+
 Helpers
+
 ==========================
-def is_filled(x) -> bool:
-if x is None or (isinstance(x, float) and pd.isna(x)):
-return False
-s = str(x).strip()
-if s == "":
-return False
-if s.lower() in {"nan", "none", "null"}:
-return False
-return True
 
-def clean_text_value(x) -> str:
-if x is None or (isinstance(x, float) and pd.isna(x)):
-return ""
-s = str(x).strip()
-if s.lower() in {"nan", "none", "null"}:
-return ""
-return s
+def is_filled(x) -> bool:if x is None or (isinstance(x, float) and pd.isna(x)):return Falses = str(x).strip()if s == "":return Falseif s.lower() in {"nan", "none", "null"}:return Falsereturn True
 
-def norm_bool(x) -> bool:
-if isinstance(x, bool):
-return x
-if x is None or (isinstance(x, float) and pd.isna(x)):
-return False
-s = str(x).strip().lower()
-return s in {"true", "yes", "1", "✓", "✔", "✅", "done"}
+def clean_text_value(x) -> str:if x is None or (isinstance(x, float) and pd.isna(x)):return ""s = str(x).strip()if s.lower() in {"nan", "none", "null"}:return ""return s
 
-def render_donut_chart(percent: float, key: str, size_px: int = 170):
-pct = 0.0 if pd.isna(percent) else float(percent)
-pct = max(0.0, min(100.0, pct))
+def norm_bool(x) -> bool:if isinstance(x, bool):return xif x is None or (isinstance(x, float) and pd.isna(x)):return Falses = str(x).strip().lower()return s in {"true", "yes", "1", "✓", "✔", "✅", "done"}
+
+def render_donut_chart(percent: float, key: str, size_px: int = 170):pct = 0.0 if pd.isna(percent) else float(percent)pct = max(0.0, min(100.0, pct))
 
 fig = go.Figure(
     data=[
@@ -176,37 +60,16 @@ fig.update_layout(
     ],
 )
 st.plotly_chart(fig, use_container_width=True, key=key)
-def clean_name(name: str) -> str:
-n = "" if name is None else str(name)
-n = n.replace("\n", " ").replace("\r", " ").strip()
-n = re.sub(r"\s+", " ", n)
-n = n.strip(" ,;")
-return n
 
-def normalize_person_name(name: str) -> str:
-n = clean_name(name).lower()
-n = n.replace("eng.", " ").replace("eng", " ")
-n = re.sub(r"[^a-z0-9\s]", " ", n)
-n = re.sub(r"\s+", " ", n).strip()
-return n
+def clean_name(name: str) -> str:n = "" if name is None else str(name)n = n.replace("\n", " ").replace("\r", " ").strip()n = re.sub(r"\s+", " ", n)n = n.strip(" ,;")return n
 
-def split_instructors(s: str):
-if s is None or (isinstance(s, float) and pd.isna(s)):
-return []
-txt = str(s).replace("\n", ",")
-parts = [clean_name(p) for p in txt.split(",")]
-return [p for p in parts if p and p.lower() not in {"nan", "none", "null"}]
+def normalize_person_name(name: str) -> str:n = clean_name(name).lower()n = n.replace("eng.", " ").replace("eng", " ")n = re.sub(r"[^a-z0-9\s]", " ", n)n = re.sub(r"\s+", " ", n).strip()return n
 
-def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:
-if not is_filled(cell_value):
-return False
-txt = clean_name(str(cell_value)).lower()
-inst = clean_name(instructor_name).lower()
-return inst in txt
+def split_instructors(s: str):if s is None or (isinstance(s, float) and pd.isna(s)):return []txt = str(s).replace("\n", ",")parts = [clean_name(p) for p in txt.split(",")]return [p for p in parts if p and p.lower() not in {"nan", "none", "null"}]
 
-def compute_progress_percent(row: pd.Series, df_columns: list) -> float:
-detailed_col = "Detailed Outline"
-blocks = [f"Block {i}" for i in range(1, 16)]
+def instructor_mentioned_in_cell(cell_value, instructor_name: str) -> bool:if not is_filled(cell_value):return Falsetxt = clean_name(str(cell_value)).lower()inst = clean_name(instructor_name).lower()return inst in txt
+
+def compute_progress_percent(row: pd.Series, df_columns: list) -> float:detailed_col = "Detailed Outline"blocks = [f"Block {i}" for i in range(1, 16)]
 
 do_done = is_filled(row.get(detailed_col, "")) if detailed_col in df_columns else False
 do_score = 0.20 if do_done else 0.0
@@ -218,10 +81,8 @@ for b in blocks:
         blocks_score += block_weight
 
 return (do_score + blocks_score) * 100.0
-def normalize_semester_label(s: str) -> str:
-s = "" if s is None else str(s).strip().lower()
-s = s.replace("-", " ")
-s = re.sub(r"\s+", " ", s)
+
+def normalize_semester_label(s: str) -> str:s = "" if s is None else str(s).strip().lower()s = s.replace("-", " ")s = re.sub(r"\s+", " ", s)
 
 replacements = {
     "spring 24/25": "spring 2024/2025",
@@ -239,78 +100,50 @@ replacements = {
 }
 
 return replacements.get(s, s)
+
 ==========================
+
 Manual School Status Numbers
+
 ==========================
+
 Replace the dummy numbers below with your real numbers later.
+
 The keys should match the normalized semester labels and school names in your sheet.
-SCHOOL_STATUS_COUNTS = {
-"spring 2024/2025": {
-"SCI": {"Planned to develop": 6, "Developed": 6, "Canceled": 0, "Not completed": 0},
-"SET": {"Planned to develop": 6, "Developed": 5, "Canceled": 1, "Not completed": 0},
-"SBEE": {"Planned to develop": 8, "Developed": 2, "Canceled": 6, "Not completed": 0},
-"SSBS": {"Planned to develop": 9, "Developed": 7, "Canceled": 2, "Not completed": 0},
-},
-"fall 2025/2026": {
-"SCI": {"Planned to develop": 6, "Developed": 0, "Canceled": 4, "Not completed": 2},
-"SET": {"Planned to develop": 9, "Developed": 0, "Canceled": 9, "Not completed": 0},
-"SBEE": {"Planned to develop": 9, "Developed": 0, "Canceled": 0, "Not completed": 1},
-"SSBS": {"Planned to develop": 7, "Developed": 3, "Canceled": 4, "Not completed": 0},
-},
-"spring 2025/2026": {
-"SCI": {"Planned to develop": 9, "Developed": 5, "Canceled": 2, "Not completed": 2},
-"SET": {"Planned to develop": 11, "Developed": 2, "Canceled": 3, "Not completed": 6},
-"SBEE": {"Planned to develop": 7, "Developed": 2, "Canceled": 2, "Not completed": 3},
-"SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 1, "Not completed": 3},
-},
-}
 
-SEMESTER_ORDER = [
-"spring 2024/2025",
-"fall 2025/2026",
-"spring 2025/2026",
-]
+SCHOOL_STATUS_COUNTS = {"spring 2024/2025": {"SCI": {"Planned to develop": 6, "Developed": 6, "Canceled": 0, "Not completed": 0},"SET": {"Planned to develop": 6, "Developed": 5, "Canceled": 1, "Not completed": 0},"SBEE": {"Planned to develop": 8, "Developed": 2, "Canceled": 6, "Not completed": 0},"SSBS": {"Planned to develop": 9, "Developed": 7, "Canceled": 2, "Not completed": 0},},"fall 2025/2026": {"SCI": {"Planned to develop": 6, "Developed": 0, "Canceled": 4, "Not completed": 2},"SET": {"Planned to develop": 9, "Developed": 0, "Canceled": 9, "Not completed": 0},"SBEE": {"Planned to develop": 9, "Developed": 0, "Canceled": 0, "Not completed": 1},"SSBS": {"Planned to develop": 7, "Developed": 3, "Canceled": 4, "Not completed": 0},},"spring 2025/2026": {"SCI": {"Planned to develop": 9, "Developed": 5, "Canceled": 2, "Not completed": 2},"SET": {"Planned to develop": 11, "Developed": 2, "Canceled": 3, "Not completed": 6},"SBEE": {"Planned to develop": 7, "Developed": 2, "Canceled": 2, "Not completed": 3},"SSBS": {"Planned to develop": 9, "Developed": 5, "Canceled": 1, "Not completed": 3},},}
 
-def normalize_course_name(name: str) -> str:
-n = clean_text_value(name).lower()
-n = n.replace("\u00a0", " ")
-n = n.replace("&", "and")
-n = re.sub(r"[^a-z0-9\s]", " ", n)
-n = re.sub(r"\s+", " ", n).strip()
-return n
+SEMESTER_ORDER = ["spring 2024/2025","fall 2025/2026","spring 2025/2026",]
 
-def get_previous_semester_key(current_semester_key: str):
-if current_semester_key not in SEMESTER_ORDER:
-return None
-idx = SEMESTER_ORDER.index(current_semester_key)
-if idx == 0:
-return None
-return SEMESTER_ORDER[idx - 1]
+def normalize_course_name(name: str) -> str:n = clean_text_value(name).lower()n = n.replace("\u00a0", " ")n = n.replace("&", "and")n = re.sub(r"[^a-z0-9\s]", " ", n)n = re.sub(r"\s+", " ", n).strip()return n
 
-def is_course_deferred_from_previous_semester(df_all: pd.DataFrame, current_semester_key: str, course_name: str) -> bool:
-previous_key = get_previous_semester_key(current_semester_key)
-if previous_key is None:
-return False
+def get_previous_semester_key(current_semester_key: str):if current_semester_key not in SEMESTER_ORDER:return Noneidx = SEMESTER_ORDER.index(current_semester_key)if idx == 0:return Nonereturn SEMESTER_ORDER[idx - 1]
+
+def is_course_deferred_from_previous_semester(df_all: pd.DataFrame, current_semester_key: str, course_name: str) -> bool:previous_key = get_previous_semester_key(current_semester_key)if previous_key is None:return False
 
 current_course_key = normalize_course_name(course_name)
 previous_courses = df_all[df_all["__semester_key__"] == previous_key]["Course \ pathway"].apply(normalize_course_name)
 return current_course_key in set(previous_courses)
-def render_school_status_box(semester_key: str, school: str):
-# Special display for SSBS when it is on hold
-if school == "SSBS" and semester_key == "spring 2025/2026":
-st.markdown(
-"""
-<div style="text-align:center; margin-top:6px;">
-<div style=" background:linear-gradient(135deg, rgba(139,0,0,0.65), rgba(208,69,70,0.35)); border:1px solid rgba(255,120,120,0.85); border-left:5px solid #ff4d4d; border-radius:10px; padding:10px 14px; color:white; box-shadow:0 0 16px rgba(208,69,70,0.55); font-size:13px; line-height:1.45; display:inline-block; width:fit-content; text-align:left; ">
-<div style=" font-weight:800; font-size:14px; color:#ffdddd; text-shadow:0 0 8px rgba(255,120,120,0.85); ">
-⏸ SSBS is Currently On Hold
-</div>
-</div>
-</div>
-""",
-unsafe_allow_html=True,
-)
-return
+
+def render_school_status_box(semester_key: str, school: str):# Special display for SSBS when it is on holdif school == "SSBS" and semester_key == "spring 2025/2026":st.markdown("""<div style="text-align:center; margin-top:6px;"><div style="
+                 background:linear-gradient(135deg, rgba(139,0,0,0.65), rgba(208,69,70,0.35));
+                 border:1px solid rgba(255,120,120,0.85);
+                 border-left:5px solid #ff4d4d;
+                 border-radius:10px;
+                 padding:10px 14px;
+                 color:white;
+                 box-shadow:0 0 16px rgba(208,69,70,0.55);
+                 font-size:13px;
+                 line-height:1.45;
+                 display:inline-block;
+                 width:fit-content;
+                 text-align:left;
+             "><div style="
+                     font-weight:800;
+                     font-size:14px;
+                     color:#ffdddd;
+                     text-shadow:0 0 8px rgba(255,120,120,0.85);
+                 ">⏸ SSBS is Currently On Hold</div></div></div>""",unsafe_allow_html=True,)return
 
 values = SCHOOL_STATUS_COUNTS.get(semester_key, {}).get(
     school,
@@ -344,10 +177,8 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-def render_glowy_note(title: str, body: str, icon: str = "📝"):
-body = clean_text_value(body)
-if not body:
-return
+
+def render_glowy_note(title: str, body: str, icon: str = "📝"):body = clean_text_value(body)if not body:return
 
 st.markdown(
     f"""
@@ -371,28 +202,25 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-def render_deferred_course_notice(previous_semester_label: str):
-st.markdown(
-f"""
-<div style=" background:linear-gradient(90deg, rgba(255,193,7,0.22), rgba(208,69,70,0.18)); border:1px solid rgba(255,193,7,0.8); border-left:8px solid #ffc107; border-radius:16px; padding:15px 18px; margin:12px 0 18px 0; color:white; box-shadow:0 0 16px rgba(255,193,7,0.35); ">
-<div style="font-size:18px; font-weight:900; color:#fff3cd; margin-bottom:5px;">
-⚠️ Postponed Course Notice
-</div>
-<div style="font-size:15px; font-weight:650; line-height:1.6;">
-<br>This course has been postponed from the previous semester ({previous_semester_label}).
-</div>
-</div>
-""",
-unsafe_allow_html=True,
-)
+
+def render_deferred_course_notice(previous_semester_label: str):st.markdown(f"""<div style="
+         background:linear-gradient(90deg, rgba(255,193,7,0.22), rgba(208,69,70,0.18));
+         border:1px solid rgba(255,193,7,0.8);
+         border-left:8px solid #ffc107;
+         border-radius:16px;
+         padding:15px 18px;
+         margin:12px 0 18px 0;
+         color:white;
+         box-shadow:0 0 16px rgba(255,193,7,0.35);
+     "><div style="font-size:18px; font-weight:900; color:#fff3cd; margin-bottom:5px;">⚠️ Postponed Course Notice</div><div style="font-size:15px; font-weight:650; line-height:1.6;"><br>This course has been postponed from the previous semester ({previous_semester_label}).</div></div>""",unsafe_allow_html=True,)
 
 ==========================
+
 Load Courses Data
+
 ==========================
-@st.cache_data
-def load_data():
-df = pd.read_csv(DATA_URL)
-df.columns = df.columns.astype(str).str.strip()
+
+@st.cache_datadef load_data():df = pd.read_csv(DATA_URL)df.columns = df.columns.astype(str).str.strip()
 
 for possible in [
     "Course \\ pathway",
@@ -452,12 +280,14 @@ df["Progress %"] = df.apply(lambda r: compute_progress_percent(r, df.columns.tol
 df["__semester_key__"] = df["Semester"].apply(normalize_semester_label)
 
 return df
+
 ==========================
+
 Load TLC Sessions Data
+
 ==========================
-@st.cache_data
-def load_tlc_sessions():
-frames = []
+
+@st.cache_datadef load_tlc_sessions():frames = []
 
 for url in TLC_SHEETS:
     try:
@@ -517,12 +347,14 @@ for key, g in grouped:
     out_rows.append(row)
 
 return pd.DataFrame(out_rows)
+
 ==========================
+
 Semester Page Renderer
+
 ==========================
-def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, key_prefix: str):
-target_semester = normalize_semester_label(semester_label)
-df = df_all[df_all["semester_key"] == target_semester].copy()
+
+def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, key_prefix: str):target_semester = normalize_semester_label(semester_label)df = df_all[df_all["semester_key"] == target_semester].copy()
 
 if df.empty:
     st.warning(f"No data found for {semester_label}.")
@@ -713,11 +545,14 @@ else:
     pct = row["Progress %"]
     st.progress(int(0 if pd.isna(pct) else pct))
     st.write(f"{0 if pd.isna(pct) else pct:.1f}%")
+
 ==========================
+
 Search Page
+
 ==========================
-def render_search_page(df_all: pd.DataFrame):
-st.subheader("Search")
+
+def render_search_page(df_all: pd.DataFrame):st.subheader("Search")
 
 query = st.text_input("Search by Course, SME, ID, Notes, Department, or School")
 
@@ -789,58 +624,44 @@ if result_df.empty:
     st.info("No matching results found.")
 else:
     st.dataframe(result_df.reset_index(drop=True), use_container_width=True)
+
 ==========================
+
 Sidebar
+
 ==========================
-try:
-st.sidebar.image("htu_logo.png", use_container_width=True)
-except Exception:
-st.sidebar.markdown("### HTU")
+
+try:st.sidebar.image("htu_logo.png", use_container_width=True)except Exception:st.sidebar.markdown("### HTU")
 
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
-page = st.sidebar.radio(
-"Go to",
-[
-"🏠 Home",
-"🔎 Search",
-"🏫 Instructors",
-"🌱 Spring 2024/2025",
-"🍂 Fall 2025/2026",
-"🌸 Spring 2025/2026",
-]
-)
+page = st.sidebar.radio("Go to",["🏠 Home","🔎 Search","🏫 Instructors","🌱 Spring 2024/2025","🍂 Fall 2025/2026","🌸 Spring 2025/2026",])
 
-view = None
-if page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026", "🌸 Spring 2025/2026"]:
-view = st.sidebar.radio("View", ["Overview", "Schools"])
+view = Noneif page in ["🌱 Spring 2024/2025", "🍂 Fall 2025/2026", "🌸 Spring 2025/2026"]:view = st.sidebar.radio("View", ["Overview", "Schools"])
 
 ==========================
+
 Header
-==========================
-st.markdown("<h1 style='text-align:center;'>HTU</h1>", unsafe_allow_html=True)
-st.markdown(
-"<h3 style='text-align:center;'>HTU Digital Twin by 2028 Progress</h3>",
-unsafe_allow_html=True,
-)
-st.markdown("<hr>", unsafe_allow_html=True)
 
 ==========================
+
+st.markdown("<h1 style='text-align:center;'>HTU</h1>", unsafe_allow_html=True)st.markdown("<h3 style='text-align:center;'>HTU Digital Twin by 2028 Progress</h3>",unsafe_allow_html=True,)st.markdown("<hr>", unsafe_allow_html=True)
+
+==========================
+
 Load all data once
-==========================
-df_all = load_data()
-df_tlc = load_tlc_sessions()
 
 ==========================
-HOME PAGE
+
+df_all = load_data()df_tlc = load_tlc_sessions()
+
 ==========================
-if page == "🏠 Home":
-summary = [
-{"school": "SCI", "total": 37, "ready": 8},
-{"school": "SET", "total": 69, "ready": 9},
-{"school": "SBEE", "total": 30, "ready": 2},
-{"school": "SSBS", "total": 32, "ready": 12},
-]
+
+HOME PAGE
+
+==========================
+
+if page == "🏠 Home":summary = [{"school": "SCI", "total": 37, "ready": 8},{"school": "SET", "total": 69, "ready": 9},{"school": "SBEE", "total": 30, "ready": 2},{"school": "SSBS", "total": 32, "ready": 12},]
 
 for s in summary:
     s["percent"] = 0 if s["total"] == 0 else round(s["ready"] / s["total"] * 100, 1)
@@ -903,17 +724,22 @@ for i, s in enumerate(display_summary):
         st.caption(f"Progress: {s['percent']:.1f}%")
 
 st.markdown("<br>", unsafe_allow_html=True)
-==========================
-SEARCH TAB
-==========================
-elif page == "🔎 Search":
-render_search_page(df_all)
 
 ==========================
-INSTRUCTORS TAB
+
+SEARCH TAB
+
 ==========================
-elif page == "🏫 Instructors":
-st.subheader("Instructors")
+
+elif page == "🔎 Search":render_search_page(df_all)
+
+==========================
+
+INSTRUCTORS TAB
+
+==========================
+
+elif page == "🏫 Instructors":st.subheader("Instructors")
 
 school_options = sorted(df_all["School"].dropna().unique())
 if len(school_options) == 0:
@@ -1068,26 +894,23 @@ else:
                     pct = 0 if total == 0 else (completed / total) * 100
                     st.progress(int(pct))
                     st.write(f"TLC Completion: {completed} / {total} ({pct:.1f}%)")
+
 ==========================
+
 SEMESTER PAGES
-==========================
-elif page == "🌱 Spring 2024/2025":
-render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
-
-elif page == "🍂 Fall 2025/2026":
-render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
-
-elif page == "🌸 Spring 2025/2026":
-render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
 
 ==========================
+
+elif page == "🌱 Spring 2024/2025":render_semester_page(df_all, "Spring 2024/2025", view, "spring2425")
+
+elif page == "🍂 Fall 2025/2026":render_semester_page(df_all, "Fall 2025/2026", view, "fall2526")
+
+elif page == "🌸 Spring 2025/2026":render_semester_page(df_all, "Spring 2025/2026", view, "spring2526")
+
+==========================
+
 Footer
+
 ==========================
-st.markdown("<br><br><br>", unsafe_allow_html=True)
-st.markdown(
-"<div style='text-align:center; color:#cccccc;'>Made By: The D. Learn Center at HTU</div>",
-unsafe_allow_html=True,
-)
 
-
-Close
+st.markdown("<br><br><br>", unsafe_allow_html=True)st.markdown("<div style='text-align:center; color:#cccccc;'>Made By: The D. Learn Center at HTU</div>",unsafe_allow_html=True,)
