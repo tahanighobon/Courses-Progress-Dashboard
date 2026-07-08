@@ -538,31 +538,31 @@ def render_semester_page(df_all: pd.DataFrame, semester_label: str, view: str, k
         st.markdown("<br><br>", unsafe_allow_html=True)
         overall = df["Progress %"].mean()
         st.subheader(f"Overall University Progress ({semester_label})")
-        st.progress(int(0 if pd.isna(overall) else overall))
-        st.write(f"Overall Completion: {0 if pd.isna(overall) else overall:.1f}%")
 
         developed_courses_total = SEMESTER_DEVELOPED_COUNTS.get(target_semester, 0)
         st.markdown(
             f"""
             <div style="
                 background:#202020;
-                border:1px solid rgba(255,255,255,0.12);
-                border-left:5px solid #d04546;
-                border-radius:10px;
-                padding:10px 14px;
+                border:2px solid rgba(255,255,255,0.15);
+                border-left:8px solid #d04546;
+                border-radius:14px;
+                padding:16px 22px;
                 color:white;
-                box-shadow:0 4px 12px rgba(0,0,0,0.25);
-                font-size:14px;
-                line-height:1.5;
+                box-shadow:0 6px 16px rgba(0,0,0,0.30);
+                font-size:18px;
+                font-weight:700;
                 display:inline-block;
-                width:fit-content;
-                margin-top:8px;
+                margin-bottom:14px;
             ">
-                ✅ <b>Developed courses this semester:</b> {developed_courses_total}
+                ✅ <b>Developed Courses This Semester:</b> {developed_courses_total}
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        st.progress(int(0 if pd.isna(overall) else overall))
+        st.write(f"Overall Completion: {0 if pd.isna(overall) else overall:.1f}%")
 
     else:
         st.subheader(f"{semester_label} – Schools")
