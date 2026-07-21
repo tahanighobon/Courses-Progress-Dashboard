@@ -257,7 +257,7 @@ def render_school_status_box(semester_key: str, school: str):
                     <div style="
                         font-weight:800;
                         font-size:14px;
-                        color:#ffdddd;
+                        color:#008000;
                         text-shadow:0 0 8px rgba(255,120,120,0.85);
                     ">
                         ⏸ SSBS is Currently On Hold
@@ -857,7 +857,7 @@ if page == "🏠 Home":
         {"school": "SCI", "total": 37, "ready": 14},
         {"school": "SET", "total": 69, "ready": 11},
         {"school": "SBEE", "total": 30, "ready": 4},
-        {"school": "SSBS", "total": 32, "ready": 15},
+        {"school": "SSBS", "total": 32, "ready": 16},
     ]
 
     for s in summary:
