@@ -178,7 +178,7 @@ SCHOOL_STATUS_COUNTS = {
         "SCI": {"Planned to develop": 6, "Developed": 0, "Canceled": 4, "Not completed": 2},
         "SET": {"Planned to develop": 9, "Developed": 0, "Canceled": 9, "Not completed": 0},
         "SBEE": {"Planned to develop": 9, "Developed": 0, "Canceled": 0, "Not completed": 1},
-        "SSBS": {"Planned to develop": -, "Developed": -, "Canceled": -, "Not completed": -},
+        "SSBS": {"Planned to develop": 7, "Developed": 3, "Canceled": 4, "Not completed": 0},
     },
     "spring 2025/2026": {
         "SCI": {"Planned to develop": 9, "Developed": 5, "Canceled": 2, "Not completed": 2},
