@@ -247,7 +247,6 @@ def render_school_status_box(semester_key: str, school: str):
                     border-radius:10px;
                     padding:10px 14px;
                     color:white;
-                    box-shadow:0 0 16px rgba(0, 128, 0, 1);
                     font-size:13px;
                     line-height:1.45;
                     display:inline-block;
