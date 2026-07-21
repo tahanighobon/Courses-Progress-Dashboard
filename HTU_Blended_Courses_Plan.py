@@ -241,7 +241,7 @@ def render_school_status_box(semester_key: str, school: str):
             """
             <div style="text-align:center; margin-top:6px;">
                 <div style="
-                    background:linear-gradient(135deg, rgba(139,0,0,0.65), rgba(208,69,70,0.35));
+                    background:linear-gradient(135deg, rgba(0, 128, 0,0.65), rgba(0, 128, 0,0.35));
                     border:1px solid rgba(255,120,120,0.85);
                     border-left:5px solid #ff4d4d;
                     border-radius:10px;
