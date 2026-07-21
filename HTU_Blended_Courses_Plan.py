@@ -247,7 +247,7 @@ def render_school_status_box(semester_key: str, school: str):
                     border-radius:10px;
                     padding:10px 14px;
                     color:white;
-                    box-shadow:0 0 16px rgba(208,69,70,0.55);
+                    box-shadow:0 0 16px rgba(0, 128, 0, 1);
                     font-size:13px;
                     line-height:1.45;
                     display:inline-block;
@@ -257,7 +257,7 @@ def render_school_status_box(semester_key: str, school: str):
                     <div style="
                         font-weight:800;
                         font-size:14px;
-                        color:#008000;
+                        color:#ffffff;
                         text-shadow:0 0 8px rgba(255,120,120,0.85);
                     ">
                         ⏸ SSBS is Currently On Hold
