@@ -854,10 +854,10 @@ df_tlc = load_tlc_sessions()
 
 if page == "🏠 Home":
     summary = [
-        {"school": "SCI", "total": 37, "ready": 8},
-        {"school": "SET", "total": 69, "ready": 9},
-        {"school": "SBEE", "total": 30, "ready": 2},
-        {"school": "SSBS", "total": 32, "ready": 12},
+        {"school": "SCI", "total": 37, "ready": 14},
+        {"school": "SET", "total": 69, "ready": 11},
+        {"school": "SBEE", "total": 30, "ready": 4},
+        {"school": "SSBS", "total": 32, "ready": 15},
     ]
 
     for s in summary:
