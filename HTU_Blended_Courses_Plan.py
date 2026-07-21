@@ -259,7 +259,7 @@ def render_school_status_box(semester_key: str, school: str):
                         color:#ffffff;
                         text-shadow:0 0 8px rgba(255,120,120,0.85);
                     ">
-                        ⏸ SSBS is Currently On Hold
+                        🏆 SSBS Exceeded Its Development Target
                     </div>
                 </div>
             </div>
